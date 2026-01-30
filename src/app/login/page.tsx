@@ -80,7 +80,7 @@ export default function LoginPage() {
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Password</label>
               {isLogin && (
-                <Link href="/forgot-password" size={10} className="text-[10px] font-bold text-blue-600 hover:underline">Forgot Password?</Link>
+                <Link href="/forgot-password" className="text-[10px] font-bold text-blue-600 hover:underline">Forgot Password?</Link>
               )}
             </div>
             <div className="relative">
