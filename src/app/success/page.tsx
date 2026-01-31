@@ -1,16 +1,32 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { 
   CheckCircle2, 
   ArrowRight, 
   Settings, 
   ShieldCheck, 
   Zap,
-  Users
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export default function SuccessPage() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('session_id');
+  
+  // We can eventually fetch the actual session from Stripe to get the plan name,
+  // but for now, we can show a high-energy "Suite Activated" message.
+  
+  useEffect(() => {
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#2563eb', '#10b981']
+    });
+  }, []);
+
   return (
     <div className="max-w-3xl mx-auto py-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* 🎉 CELEBRATION HEADER */}
@@ -18,12 +34,17 @@ export default function SuccessPage() {
         <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-50 rounded-full mb-4">
           <CheckCircle2 size={40} className="text-emerald-500" />
         </div>
-        <h1 className="text-4xl font-black text-compliance-blue tracking-tight">
-          Welcome to the <span className="text-blue-600">Pro</span> Tier.
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+          Governance Suite <span className="text-blue-600">Activated.</span>
         </h1>
         <p className="text-slate-500 text-lg max-w-md mx-auto">
-          Your subscription is confirmed. You now have full access to the HIPAA Audit Vault and Policy Enforcement.
+          Your compliance engine is now online. You have full access to the HIPAA Audit Vault and Policy Enforcement.
         </p>
+        {sessionId && (
+           <p className="text-[10px] font-mono text-slate-300 uppercase tracking-widest">
+             Ref: {sessionId.slice(0, 18)}...
+           </p>
+        )}
       </div>
 
       {/* 📋 NEXT STEPS GRID */}
@@ -39,10 +60,10 @@ export default function SuccessPage() {
         <div className="space-y-8 relative z-10">
           {/* STEP 1 */}
           <div className="flex gap-6">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">1</div>
+            <div className="flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold shadow-lg shadow-blue-200">1</div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900">Connect Azure Tenant</h3>
-              <p className="text-sm text-slate-500">Enter your Service Principal credentials in Settings to begin scanning.</p>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Enter your Service Principal credentials in Settings to begin scanning your subscriptions.</p>
               <Link href="/settings" className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
                 Go to Settings <Settings size={14} />
               </Link>
@@ -50,11 +71,11 @@ export default function SuccessPage() {
           </div>
 
           {/* STEP 2 */}
-          <div className="flex gap-6 opacity-60">
-            <div className="flex-shrink-0 w-10 h-10 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center font-bold">2</div>
+          <div className="flex gap-6">
+            <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">2</div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900">Define Your Schema</h3>
-              <p className="text-sm text-slate-500">Visit the Tag Registry to set your mandatory healthcare tags.</p>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Visit the Tag Registry to set your mandatory HIPAA and Financial tags.</p>
               <Link href="/policy" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 mt-2 hover:underline">
                 View Registry <ArrowRight size={14} />
               </Link>
@@ -62,11 +83,11 @@ export default function SuccessPage() {
           </div>
 
           {/* STEP 3 */}
-          <div className="flex gap-6 opacity-60">
-            <div className="flex-shrink-0 w-10 h-10 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center font-bold">3</div>
+          <div className="flex gap-6">
+            <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">3</div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900">Download BAA</h3>
-              <p className="text-sm text-slate-500">Your signed Business Associate Agreement is ready in the Audit Vault.</p>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Your signed Business Associate Agreement is ready for download in the Audit Vault.</p>
               <Link href="/audit" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 mt-2 hover:underline">
                 Go to Vault <ShieldCheck size={14} />
               </Link>

@@ -1,107 +1,108 @@
 "use client";
-import React, { useState } from 'react';
-import { Search, Filter, Download, Plus, CheckCircle, Lock, Unlock } from 'lucide-react';
-import { complianceSettings } from '@/lib/complianceStore';
+import React from 'react';
+import { 
+  Database, ShieldCheck, Zap, Lock, 
+  FileText, CheckCircle2, Info
+} from 'lucide-react';
 
-export default function RegistryPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isCertified, setIsCertified] = useState(false);
-
-  const allResources = [
-    { id: '1', name: 'sql-patient-db', type: 'Azure SQL', status: complianceSettings.forceNonCompliant ? 'Non-Compliant' : 'Compliant', phi: 'Yes' },
-    { id: '2', name: 'web-portal-vm', type: 'Virtual Machine', status: 'Non-Compliant', phi: 'Yes' },
-    { id: '3', name: 'storage-logs-gen2', type: 'Storage Account', status: 'Compliant', phi: 'No' },
-    { id: '4', name: 'auth-service-aks', type: 'Kubernetes Service', status: 'Compliant', phi: 'No' },
-    { id: '5', name: 'clinical-images-blob', type: 'Blob Storage', status: 'Non-Compliant', phi: 'Yes' },
+export default function TagRegistry() {
+  const mandatoryKeys = [
+    { key: "BusinessUnit", values: ["Clinical", "Research", "Billing", "Operations", "IT"], details: "Identifies the healthcare business unit that owns the workload for chargeback." },
+    { key: "ApplicationName", values: ["EpicEMR", "PatientPortal", "BillingSystem", "LabSystem", "Analytics"], details: "Application or service associated with the resource." },
+    { key: "Environment", values: ["Prod", "NonProd", "Dev", "Test", "DR"], details: "Defines operational and compliance controls." },
+    { key: "Owner", pattern: "firstname.lastname@healthco.com", details: "Accountable technical or business owner." },
+    { key: "DataClassification", values: ["PHI", "PII", "Internal", "Public"], details: "Defines sensitivity of data stored or processed." },
+    { key: "ContainsPHI", values: ["Yes", "No"], details: "Identifies if protected health information is present." },
+    { key: "HIPAAZone", values: ["Secure", "General"], dependency: "Required when ContainsPHI = Yes" },
+    { key: "EncryptionRequired", values: ["Yes"], dependency: "Required when ContainsPHI = Yes" }
   ];
 
-  const filteredResources = allResources.filter(res => 
-    res.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="max-w-6xl animate-in fade-in duration-500">
-      <header className="mb-8 flex justify-between items-end">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-compliance-blue">Resource Registry</h1>
-            {isCertified && (
-              <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200 animate-bounce">
-                <CheckCircle size={12} /> CERTIFIED BY JENNY
-              </span>
-            )}
-          </div>
-          <p className="text-clinical-grey mt-2">Finalize and sign-off on monthly cloud compliance inventory.</p>
+    <div className="max-w-6xl mx-auto py-12 space-y-12 animate-in fade-in duration-500">
+      
+      {/* 🏷️ PAGE HEADER */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-3 text-blue-600 mb-2">
+          <Database size={32} />
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Tag Registry</h1>
         </div>
-        
-        {/* 🔘 THE INTERACTIVE BUTTON */}
-        {!isCertified ? (
-          <button 
-            onClick={() => setIsCertified(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-md active:scale-95"
-          >
-            <CheckCircle size={18} /> Certify Inventory
-          </button>
-        ) : (
-          <button 
-            onClick={() => setIsCertified(false)}
-            className="flex items-center gap-2 text-clinical-grey text-xs hover:text-compliance-blue transition-colors font-medium"
-          >
-            <Unlock size={12} /> Unlock to edit
-          </button>
-        )}
-      </header>
+        <p className="text-slate-500 text-lg max-w-2xl font-medium">
+          The official healthcare schema standards for 100% financial traceability and HIPAA compliance.
+        </p>
+      </section>
 
-      {/* 🔍 SEARCH BAR - Disables when certified */}
-      <div className={`bg-white p-4 rounded-xl border border-gray-200 mb-6 flex gap-4 shadow-sm transition-all duration-500 ${isCertified ? 'bg-gray-50 opacity-60' : 'opacity-100'}`}>
-        <div className="relative flex-1">
-          {isCertified ? (
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          ) : (
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          )}
-          <input 
-            type="text"
-            disabled={isCertified}
-            placeholder={isCertified ? "Inventory locked for audit..." : "Search resources..."}
-            className="w-full pl-10 pr-4 py-2 bg-milk-white border border-gray-200 rounded-lg focus:outline-none disabled:cursor-not-allowed"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* 🏛️ ARCHITECTURE OVERVIEW */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="bg-blue-50 p-6 rounded-[2rem] border border-blue-100 space-y-2">
+          <ShieldCheck className="text-blue-600" size={24} />
+          <h3 className="font-bold text-slate-900">16 Mandatory Keys</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">Every resource must contain the full base-schema to be considered compliant.</p>
         </div>
-        <button disabled={isCertified} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-30">
-          <Filter size={18} /> Filters
-        </button>
+        <div className="bg-emerald-50 p-6 rounded-[2rem] border border-emerald-100 space-y-2">
+          <Zap className="text-emerald-600" size={24} />
+          <h3 className="font-bold text-slate-900">Logic Dependencies</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">Tags like HIPAAZone are dynamically required based on PHI status.</p>
+        </div>
+        <div className="bg-slate-900 p-6 rounded-[2rem] text-white space-y-2">
+          <Lock className="text-blue-400" size={24} />
+          <h3 className="font-bold">Zero-PHI Control</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">Registry only manages metadata. Clinical data is never touched.</p>
+        </div>
       </div>
 
-      {/* DATA TABLE */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-milk-white border-b border-gray-200">
-              <th className="p-4 text-xs font-bold uppercase text-clinical-grey">Resource Name</th>
-              <th className="p-4 text-xs font-bold uppercase text-clinical-grey">Type</th>
-              <th className="p-4 text-xs font-bold uppercase text-clinical-grey">PHI Status</th>
-              <th className="p-4 text-xs font-bold uppercase text-clinical-grey">Compliance</th>
+      {/* 📑 DETAILED SCHEMA TABLE */}
+      <section className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 border-b border-slate-100">
+            <tr>
+              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Key Name</th>
+              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Allowed Values</th>
+              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Requirement</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredResources.map((res) => (
-              <tr key={res.id} className="hover:bg-gray-50 transition-colors">
-                <td className="p-4 font-semibold text-compliance-blue">{res.name}</td>
-                <td className="p-4 text-sm text-clinical-grey">{res.type}</td>
-                <td className="p-4">
-                   <span className="text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-500">{res.phi === 'Yes' ? 'PHI' : 'PUBLIC'}</span>
+          <tbody className="divide-y divide-slate-100">
+            {mandatoryKeys.map((tag) => (
+              <tr key={tag.key} className="hover:bg-slate-50/50 transition-colors">
+                <td className="px-8 py-6">
+                  <div className="flex flex-col gap-1">
+                    <code className="text-blue-600 font-black text-sm">{tag.key}</code>
+                    <span className="text-[10px] text-slate-400 max-w-[200px] leading-tight">{tag.details}</span>
+                  </div>
                 </td>
-                <td className="p-4">
-                  <span className={`text-sm font-bold ${res.status === 'Compliant' ? 'text-green-600' : 'text-red-500'}`}>
-                    {res.status}
-                  </span>
+                <td className="px-8 py-6">
+                  <div className="flex flex-wrap gap-1.5">
+                    {tag.values ? tag.values.map(v => (
+                      <span key={v} className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-md font-bold">
+                        {v}
+                      </span>
+                    )) : (
+                      <span className="text-slate-400 italic text-xs font-mono">{tag.pattern}</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-8 py-6">
+                  {tag.dependency ? (
+                    <div className="flex items-center gap-2 text-emerald-600 text-[10px] font-black italic uppercase">
+                      <Info size={12} /> {tag.dependency}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase">
+                      <CheckCircle2 size={12} /> Always Mandatory
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </section>
+
+      {/* 🔗 REDIRECT TO PRIVACY */}
+      <div className="pt-8 text-center border-t border-slate-100">
+        <p className="text-slate-400 text-sm">
+          Looking for our legal and data protection policies? 
+          <a href="/privacy" className="text-blue-600 font-bold ml-1 hover:underline">View Privacy Policy</a>
+        </p>
       </div>
     </div>
   );

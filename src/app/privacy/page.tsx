@@ -1,55 +1,107 @@
 "use client";
 import React from 'react';
-import { Shield, Eye, Lock, Globe, FileText, Scale } from 'lucide-react';
+import { 
+  Shield, Eye, Lock, Globe, 
+  Database, Scale, Fingerprint, 
+  Users, HardDrive 
+} from 'lucide-react';
 
 export default function PrivacyPolicy() {
   const sections = [
     {
-      title: "1. Introduction",
-      icon: <Globe size={18} />,
-      content: "PHItag ('we', 'us') respects your privacy. This policy explains how we collect, protect, and handle data when you use our Governance Suite. We operate as a Data Processor for your Azure metadata and a Data Controller for your account information."
+      title: "1. The Zero-PHI Guarantee",
+      icon: <Database className="text-blue-600" size={20} />,
+      content: "PHItag is architected as a stateless control plane. We do not store, process, or have access to any Protected Health Information (PHI) or Personally Identifiable Information (PII) residing within your Azure environment. Our system is designed to manage and monitor resource metadata (Tags) only."
     },
     {
-      title: "2. Data We Collect",
-      icon: <Eye size={18} />,
-      content: "We collect account information (email, name) and Azure Resource Metadata (Tag keys, values, resource types). Importantly: PHItag does NOT access, read, or store raw Patient Health Information (PHI) contained within your databases or storage blobs."
+      title: "2. Data Collection & Processing",
+      icon: <Eye className="text-blue-600" size={20} />,
+      content: "We act as a Data Processor for your Azure metadata. We collect: (a) Account Information (name, work email) for authentication, and (b) Azure Resource Metadata (Resource IDs, Tag keys, and values) to facilitate governance and compliance reporting."
     },
     {
-      title: "3. How We Use Data",
-      icon: <Shield size={18} />,
-      content: "Data is used solely to provide compliance reporting, identify tagging drift, and manage your subscription. We do not sell your data or use it for behavioral advertising."
+      title: "3. HIPAA & Data Sovereignty",
+      icon: <Lock className="text-blue-600" size={20} />,
+      content: "For healthcare clients, all processing is governed by a signed Business Associate Agreement (BAA). To maintain compliance, all audit metadata is encrypted at rest using AES-256 and stored exclusively in Azure US-East regions to ensure data remains within the approved geographic boundary."
     },
     {
-      title: "4. HIPAA & Data Sovereignty",
-      icon: <Lock size={18} />,
-      content: "For healthcare clients, our processing is governed by a Business Associate Agreement (BAA). All audit data is encrypted at rest using AES-256 and is stored exclusively in Azure US-East regions to maintain compliance."
+      title: "4. Third-Party Subprocessors",
+      icon: <Users className="text-blue-600" size={20} />,
+      content: "We use strictly vetted subprocessors to maintain our service: Microsoft Azure (Cloud Hosting), Stripe (Billing Operations), and Clerk/Auth0 (Identity Management). All subprocessors are vetted for HIPAA compliance and maintain active BAAs where applicable."
+    },
+    {
+      title: "5. Data Usage & Security",
+      icon: <Shield className="text-blue-600" size={20} />,
+      content: "Your data is used solely to identify tagging drift and generate compliance evidence. We do not sell your metadata or use it for behavioral advertising. Audit trails of who certified inventory (e.g., 'Certified by Jenny') are maintained for your internal regulatory requirements."
+    },
+    {
+      title: "6. Your Rights & Access",
+      icon: <Scale className="text-blue-600" size={20} />,
+      content: "Under HIPAA and GDPR, you have the right to access, delete, or port your account data. Because we do not store clinical data, these requests apply only to your administrative account profile. For data removal, contact our Privacy Officer."
     }
   ];
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6 animate-in fade-in duration-700">
-      <div className="mb-12 border-b border-slate-200 pb-8">
-        <h1 className="text-4xl font-black text-compliance-blue tracking-tight">Privacy Policy</h1>
-        <p className="text-slate-500 mt-2 italic text-sm">Last Updated: January 2026</p>
+    <div className="max-w-4xl mx-auto py-16 px-6 animate-in fade-in duration-700">
+      {/* HEADER */}
+      <div className="mb-16 border-b border-slate-200 pb-10">
+        <div className="flex items-center gap-3 mb-4">
+          <Fingerprint className="text-blue-600" size={32} />
+          <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+            Legal Framework
+          </span>
+        </div>
+        <h1 className="text-5xl font-black text-slate-900 tracking-tighter">
+          Privacy Policy
+        </h1>
+        <p className="text-slate-500 mt-4 text-lg font-medium">
+          How PHItag protects healthcare metadata while maintaining a zero-access posture toward clinical data.
+        </p>
+        <div className="flex gap-6 mt-6 text-xs text-slate-400 font-bold uppercase tracking-widest">
+          <span>Version 1.2</span>
+          <span>Last Updated: Jan 30, 2026</span>
+        </div>
       </div>
 
-      <div className="space-y-12">
+      {/* POLICY SECTIONS */}
+      <div className="grid gap-12">
         {sections.map((s, i) => (
-          <section key={i} className="space-y-4">
-            <div className="flex items-center gap-3 text-blue-600">
-              {s.icon}
-              <h2 className="text-xl font-bold text-slate-900">{s.title}</h2>
+          <section key={i} className="group">
+            <div className="flex items-start gap-6">
+              <div className="mt-1 p-3 bg-blue-50 rounded-2xl border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                {s.icon}
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                  {s.title}
+                </h2>
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  {s.content}
+                </p>
+              </div>
             </div>
-            <p className="text-slate-600 leading-relaxed text-sm pl-8">
-              {s.content}
-            </p>
           </section>
         ))}
       </div>
 
-      <div className="mt-16 p-8 bg-slate-50 rounded-3xl border border-slate-200">
-        <h3 className="font-bold text-slate-900 mb-2">Questions?</h3>
-        <p className="text-sm text-slate-500">Contact our Data Protection Officer at <span className="text-blue-600 font-bold">privacy@phitag.com</span></p>
+      {/* CALL TO ACTION / SUPPORT */}
+      <div className="mt-20 p-10 bg-slate-900 rounded-[3rem] text-white relative overflow-hidden shadow-2xl">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="space-y-2">
+            <h3 className="text-2xl font-bold">Privacy Questions?</h3>
+            <p className="text-slate-400 text-sm max-w-sm">
+              Our Data Protection Officer is available to discuss our BAA terms and stateless architecture.
+            </p>
+          </div>
+          <a 
+            href="mailto:privacy@phitag.com" 
+            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg"
+          >
+            Contact Privacy Officer
+          </a>
+        </div>
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <HardDrive size={180} />
+        </div>
       </div>
     </div>
   );
