@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
@@ -11,14 +12,17 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function SuccessPage() {
+/**
+ * SUCCESS CONTENT COMPONENT
+ * This handles all the UI and the 'useSearchParams' hook.
+ * It is wrapped by the Suspense boundary in the main export.
+ */
+function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   
-  // We can eventually fetch the actual session from Stripe to get the plan name,
-  // but for now, we can show a high-energy "Suite Activated" message.
-  
   useEffect(() => {
+    // Trigger celebration confetti on mount
     confetti({
       particleCount: 150,
       spread: 70,
@@ -103,5 +107,21 @@ export default function SuccessPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * MAIN PAGE EXPORT
+ * Wraps the content in Suspense to prevent Next.js build errors.
+ */
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-400 animate-pulse font-medium">Verifying Activation...</p>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }
