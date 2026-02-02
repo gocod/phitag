@@ -5,22 +5,31 @@ import {
   ShieldAlert, 
   Settings2, 
   Terminal, 
-  Zap, // Changed from CloudZap
+  Zap, 
   X, 
   Key, 
   Globe, 
-  Fingerprint 
+  Fingerprint,
+  CheckCircle2,
+  AlertCircle,
+  Activity
 } from 'lucide-react';
 import { complianceSettings } from '@/lib/complianceStore';
 
 export default function SchemaPage() {
-  // State Management
   const [dangerZone, setDangerZone] = useState(complianceSettings.forceNonCompliant);
   const [isTyping, setIsTyping] = useState(false);
   const [visibleLines, setVisibleLines] = useState(4);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Terminal Log Definitions
+  // Healthcare Specific Policy Definitions
+  const healthcarePolicies = [
+    { key: "ContainsPHI", requirement: "Mandatory", desc: "Flag for Protected Health Information", status: "Active" },
+    { key: "DataClassification", requirement: "Mandatory", desc: "PHI, PII, or Internal usage", status: "Active" },
+    { key: "EncryptionRequired", requirement: "Conditional", desc: "Must be 'Yes' if PHI is present", status: "Monitoring" },
+    { key: "Environment", requirement: "Mandatory", desc: "Prod, NonProd, or Dev scoping", status: "Active" },
+  ];
+
   const logLines = [
     { text: "// Initialize healthcare_tags.json version 1.2", color: "text-slate-500" },
     { text: "[INFO] Terraform plan generated successfully.", color: "text-blue-600" },
@@ -37,53 +46,19 @@ export default function SchemaPage() {
   const handleExport = () => {
     setIsTyping(true);
     setVisibleLines(0);
-    
     logLines.forEach((_, index) => {
       setTimeout(() => {
         setVisibleLines(prev => prev + 1);
         if (index === logLines.length - 1) setIsTyping(false);
       }, (index + 1) * 400);
     });
-
-    const fullPolicyExport = {
-      metadata: {
-        version: "2026-01",
-        author: "Jenny (Compliance Lead)",
-        environment: "Production-US-East",
-        timestamp: new Date().toISOString()
-      },
-      policy_definition: [
-        { key: "BusinessUnit", values: ["Clinical", "Research", "Billing", "Operations", "IT"], required: true },
-        { key: "ApplicationName", values: ["EpicEMR", "PatientPortal", "BillingSystem", "LabSystem", "Analytics"], required: true },
-        { key: "Environment", values: ["Prod", "NonProd", "Dev", "Test", "DR"], required: true },
-        { key: "Owner", pattern: "firstname.lastname@healthco.com", required: true },
-        { key: "CostCenter", values: ["CC-Clinical", "CC-Research", "CC-Billing", "CC-IT"], required: true },
-        { key: "DataClassification", values: ["PHI", "PII", "Internal", "Public"], required: true },
-        { key: "Criticality", values: ["Tier1", "Tier2", "Tier3"], required: true },
-        { key: "ContainsPHI", values: ["Yes", "No"], required: true },
-        { key: "HIPAAZone", values: ["Secure", "General"], dependency: "ContainsPHI == Yes" },
-        { key: "EncryptionRequired", values: ["Yes"], dependency: "ContainsPHI == Yes" },
-        { key: "BackupPolicy", values: ["Hourly", "Daily", "Weekly", "None"], required: true },
-        { key: "DRClass", values: ["Hot", "Warm", "Cold"], required: true },
-        { key: "SecurityZone", values: ["Internet", "Internal", "Restricted"], required: true },
-        { key: "ComplianceScope", values: ["HIPAA", "SOX", "HITRUST", "None"], required: true },
-        { key: "ProjectCode", values: ["EHR-Modernization", "PatientApp", "Billing2026"], required: false },
-        { key: "BudgetOwner", values: ["finance@healthco.com"], required: false }
-      ]
-    };
-
-    const blob = new Blob([JSON.stringify(fullPolicyExport, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `healthcare_azure_policy_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+    // ... rest of your export logic
   };
 
   return (
     <div className="max-w-4xl space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* 🟦 AZURE CONNECTION MODAL */}
+      {/* 🟦 AZURE CONNECTION MODAL (Existing logic preserved) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-compliance-blue/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -109,14 +84,12 @@ export default function SchemaPage() {
                   </label>
                   <input type="text" placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-clinical-grey uppercase flex items-center gap-2">
                     <Fingerprint size={12} /> Client (App) ID
                   </label>
                   <input type="text" placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-clinical-grey uppercase flex items-center gap-2">
                     <Key size={12} /> Client Secret
@@ -166,17 +139,54 @@ export default function SchemaPage() {
         </div>
       </header>
 
-      {/* 📊 STATS CARDS */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-[10px] font-bold text-clinical-grey uppercase tracking-widest">Active Constraints</p>
-          <p className="text-2xl font-bold text-compliance-blue mt-1">14 Deny / 2 Audit</p>
+      {/* 📋 LIVE POLICY AUDIT TABLE */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-gray-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Activity size={18} className="text-blue-600" />
+            <h3 className="font-bold text-compliance-blue text-sm uppercase tracking-wider">Healthcare Tag Requirements</h3>
+          </div>
+          <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">HIPAA v2.1 Compliance</span>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-[10px] font-bold text-clinical-grey uppercase tracking-widest">Sync Frequency</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">On-Push (CI/CD)</p>
-        </div>
-      </div>
+        <table className="w-full text-left">
+          <thead className="bg-white text-[10px] font-bold text-clinical-grey uppercase border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-3 text-center w-16">Status</th>
+              <th className="px-6 py-3">Tag Key</th>
+              <th className="px-6 py-3">Requirement</th>
+              <th className="px-6 py-3">Logic Description</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {healthcarePolicies.map((policy) => (
+              <tr key={policy.key} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-center">
+                  {policy.status === "Active" ? (
+                    <CheckCircle2 size={18} className="text-green-500 mx-auto" />
+                  ) : (
+                    <AlertCircle size={18} className="text-amber-500 mx-auto" />
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <code className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-mono font-bold">
+                    {policy.key}
+                  </code>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    policy.requirement === 'Mandatory' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {policy.requirement}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-xs text-clinical-grey">
+                  {policy.desc}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       {/* ⚠️ SIMULATION CONTROL */}
       <section className={`p-8 rounded-xl border-2 transition-all duration-300 ${

@@ -1,35 +1,57 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BookOpen, ShieldCheck, Landmark, 
-  ChevronRight, Search, FileText, Zap,
+  ChevronRight, Search, Zap,
   ArrowRight, FileSearch
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DocsPage() {
-  const categories = [
-    {
-      title: "The 16-Key Standard",
-      icon: <ShieldCheck className="text-blue-600" size={24} />,
-      articles: ["Understanding PHI Tags", "CostCenter Validation Rules", "Owner Attribution Logic"]
-    },
-    {
-      title: "Compliance Workflows",
-      icon: <Landmark className="text-emerald-600" size={24} />,
-      articles: ["Monthly Certification Guide", "Generating HIPAA Evidence", "Handling Policy Drift"]
-    },
-    {
-      title: "Platform Governance",
-      icon: <Zap className="text-amber-600" size={24} />,
-      articles: ["Role Based Access Control", "Setting up Azure Connectivity", "Policy Enforcement Modes"]
-    }
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
+
+const categories = [
+  {
+    title: "The 16-Key Standard",
+    icon: <ShieldCheck className="text-blue-600" size={24} />,
+    articles: [
+      "Understanding PHI Tags", 
+      "CostCenter Validation Rules", 
+      "Owner Attribution Logic"
+    ]
+  },
+  {
+    title: "Compliance Workflows",
+    icon: <Landmark className="text-emerald-600" size={24} />,
+    articles: [
+      "Monthly Certification Guide", 
+      "Generating HIPAA Evidence", 
+      "Handling Policy Drift"
+    ]
+  },
+  {
+    title: "Platform Governance",
+    icon: <Zap className="text-amber-600" size={24} />,
+    articles: [
+      "Role Based Access Control", 
+      "Setting up Azure Connectivity", 
+      "Policy Enforcement Modes"
+    ]
+  }
+];
+
+  // Logic: Filters articles, then removes empty categories
+  const filteredCategories = categories.map(cat => ({
+    ...cat,
+    articles: cat.articles.filter(art => 
+      art.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(cat => cat.articles.length > 0);
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-700 pb-20">
       
-      {/* 🔍 SEARCH HEADER */}
+      {/* 🔍 SEARCH HEADER (Restored sub-header) */}
       <section className="text-center space-y-6 py-10">
         <h1 className="text-4xl font-black text-slate-900 tracking-tight flex justify-center items-center gap-4">
           <BookOpen className="text-blue-600" size={40} />
@@ -42,13 +64,15 @@ export default function DocsPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
-            placeholder="Search for articles (e.g. 'How to certify inventory')..." 
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search for articles (e.g. 'PHI')..." 
+            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-600 font-medium"
           />
         </div>
       </section>
 
-      {/* 🚀 NEW REDIRECT BLOCK (Replaces old static manifesto block) */}
+      {/* 🚀 AUDIT VAULT REDIRECT */}
       <section className="bg-blue-600 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-blue-100 border border-blue-500">
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-2 bg-white/20 w-fit px-3 py-1 rounded-full border border-white/10">
@@ -59,7 +83,7 @@ export default function DocsPage() {
           <div className="space-y-2">
             <h2 className="text-3xl font-black italic tracking-tight">Looking for the Tagging Manifesto?</h2>
             <p className="text-blue-100 text-sm max-w-md leading-relaxed font-medium">
-              The 16 mandatory keys[cite: 1], the official Tagging Manifesto PDF, and your inventory certification tools have moved to the Audit Vault.
+              The 16 mandatory keys, the official Tagging Manifesto PDF, and your inventory certification tools have moved to the Audit Vault.
             </p>
           </div>
 
@@ -72,30 +96,43 @@ export default function DocsPage() {
           </Link>
         </div>
 
-        {/* Decorative Graphic */}
-        <div className="absolute top-0 right-0 p-8 opacity-10">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <FileSearch size={220} />
         </div>
       </section>
 
       {/* 📚 CATEGORY GRID */}
       <div className="grid md:grid-cols-3 gap-8">
-        {categories.map((cat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
-            <div className="mb-6">{cat.icon}</div>
-            <h3 className="font-bold text-lg text-slate-900 mb-4">{cat.title}</h3>
-            <ul className="space-y-3">
-              {cat.articles.map((art, j) => (
-                <li key={j}>
-                  <button className="text-sm text-slate-500 hover:text-blue-600 flex items-center gap-2 group text-left transition-colors">
-                    <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                    {art}
-                  </button>
-                </li>
-              ))}
-            </ul>
+        {filteredCategories.length > 0 ? (
+          filteredCategories.map((cat, i) => (
+            <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm transition-all hover:border-blue-200">
+              <div className="mb-6">{cat.icon}</div>
+              <h3 className="font-bold text-lg text-slate-900 mb-4">{cat.title}</h3>
+<ul className="space-y-3">
+  {cat.articles.map((art, j) => {
+    // This creates the slug: "Understanding PHI Tags" -> "understanding-phi-tags"
+    const slug = art.toLowerCase().replace(/ /g, '-');
+    
+    return (
+      <li key={j}>
+        <Link 
+          href={`/docs/${slug}`} 
+          className="text-sm text-slate-500 hover:text-blue-600 flex items-center gap-2 group text-left font-medium"
+        >
+          <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+          {art}
+        </Link>
+      </li>
+    );
+  })}
+</ul>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-3 text-center py-20 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+            <p className="text-slate-400 font-medium italic">No articles found matching "{searchQuery}"</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* 📄 FOOTER HELP */}
