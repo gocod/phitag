@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Check, ShieldCheck, ArrowRight, ShieldAlert, Loader2 } from 'lucide-react';
+import { Check, ShieldCheck, ArrowRight, ShieldAlert, Loader2, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from "next-auth/react";
 
@@ -10,12 +10,27 @@ export default function PricingPage() {
 
   const tiers = [
     {
+      name: "Free Trial",
+      price: "$0",
+      priceId: "free_tier", // Placeholder to handle local logic
+      desc: "Perfect for exploring the interface and testing 5 resources.",
+      features: [
+        "Standard HIPAA Tag Set",
+        "Manual Policy Scanning",
+        "Up to 5 Managed Resources",
+        "Community Support",
+        "No Credit Card Required"
+      ],
+      button: "Start Free Trial",
+      highlight: false
+    },
+    {
       name: "Governance Pro",
       price: "$699",
       priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO,
-      desc: "Ideal for health-tech startups and single-tenant Azure environments.",
+      desc: "Ideal for health-tech startups and single-tenant environments.",
       features: [
-        "Tag Registry (HIPAA Standard)",
+        "Everything in Free",
         "Real-time Drift Detection",
         "Up to 1,000 Managed Resources",
         "Weekly Compliance Scorecards",
@@ -35,34 +50,23 @@ export default function PricingPage() {
         "Automated Tag Remediation",
         "Infrastructure Traceback Map",
         "Up to 10,000 Managed Resources",
-        "HIPAA Audit Vault (Ready-to-Sign)",
+        "HIPAA Audit Vault",
         "Policy Enforcement Campaigns",
         "Priority Support (2h Response)"
       ],
       button: "Upgrade to Elite",
       highlight: true
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      priceId: null, 
-      desc: "Total cloud accountability for multi-tenant clinical organizations.",
-      features: [
-        "Everything in Elite",
-        "Unlimited Azure Resources",
-        "Multi-Tenant Tenant Mapping",
-        "Custom BAA Provisions",
-        "SAML / SSO / Azure AD",
-        "White-glove Implementation",
-        "Dedicated Compliance Engineer"
-      ],
-      button: "Talk to an Expert",
-      highlight: false
     }
   ];
 
   const handleCheckout = async (priceId: string | null | undefined) => {
     if (!priceId) return;
+
+    // 🆕 FREE TIER LOGIC: Don't go to Stripe, just go to Dashboard
+    if (priceId === "free_tier") {
+      window.location.href = session ? "/dashboard" : "/login?callbackUrl=/dashboard";
+      return;
+    }
 
     if (!session) {
       window.location.href = `/login?callbackUrl=/pricing`;
@@ -107,7 +111,7 @@ export default function PricingPage() {
         </p>
       </section>
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid md:grid-cols-3 gap-8 items-start">
         {tiers.map((tier, i) => (
           <div 
             key={i} 
@@ -127,7 +131,7 @@ export default function PricingPage() {
               <h3 className="text-xl font-black text-slate-900 mb-2">{tier.name}</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-black text-slate-900">{tier.price}</span>
-                {tier.price !== "Custom" && <span className="text-slate-400 font-bold text-sm">/mo</span>}
+                {tier.price !== "$0" && <span className="text-slate-400 font-bold text-sm">/mo</span>}
               </div>
               <p className="text-[11px] text-slate-500 mt-4 leading-relaxed font-bold italic h-10">{tier.desc}</p>
             </div>
@@ -143,32 +147,23 @@ export default function PricingPage() {
               ))}
             </ul>
 
-            {/* 🛠️ DYNAMIC BUTTON LOGIC START */}
-            {tier.priceId === null ? (
-              <Link 
-                href="/support"
-                className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center bg-slate-900 text-white hover:bg-black"
-              >
-                {tier.button}
-              </Link>
-            ) : (
-              <button 
-                onClick={() => handleCheckout(tier.priceId)}
-                disabled={loadingPriceId === tier.priceId}
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
-                  tier.highlight 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
+            <button 
+              onClick={() => handleCheckout(tier.priceId)}
+              disabled={loadingPriceId === tier.priceId}
+              className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                tier.highlight 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
+                  : tier.name === "Free Trial" 
+                    ? 'bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50'
                     : 'bg-slate-900 text-white hover:bg-black'
-                }`}
-              >
-                {loadingPriceId === tier.priceId ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  tier.button
-                )}
-              </button>
-            )}
-            {/* 🛠️ DYNAMIC BUTTON LOGIC END */}
+              }`}
+            >
+              {loadingPriceId === tier.priceId ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                tier.button
+              )}
+            </button>
           </div>
         ))}
       </div>
@@ -183,9 +178,9 @@ export default function PricingPage() {
             <ShieldCheck className="text-emerald-400" size={24} />
             <span className="text-emerald-400 font-black uppercase text-[10px] tracking-widest">HIPAA Safe Harbor</span>
           </div>
-          <h2 className="text-3xl font-black italic tracking-tight">Need a signed BAA?</h2>
+          <h2 className="text-3xl font-black italic tracking-tight">Need custom BAA terms?</h2>
           <p className="text-slate-400 text-sm max-w-md leading-relaxed font-medium">
-            We understand the regulatory burden of healthcare IT. Our Enterprise and Elite plans include a pre-signed Business Associate Agreement.
+            We understand the regulatory burden of healthcare IT. Our Elite plan includes a pre-signed Business Associate Agreement for rapid onboarding.
           </p>
         </div>
         
