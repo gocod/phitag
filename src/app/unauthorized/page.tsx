@@ -1,59 +1,78 @@
 import Link from 'next/link';
-import { ShieldAlert, ArrowLeft, Lock } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Lock, Fingerprint } from 'lucide-react';
 
 export default function Unauthorized() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 bg-milk-white">
-      <div className="max-w-md w-full text-center space-y-8 p-10 bg-white border border-gray-100 shadow-2xl rounded-3xl">
-        {/* Icon Header */}
+      {/* Container with a "Glassmorphism" hint */}
+      <div className="max-w-md w-full text-center space-y-8 p-10 bg-white border border-slate-200 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem]">
+        
+        {/* Visual Alert Section */}
         <div className="flex justify-center">
           <div className="relative">
-            <div className="absolute inset-0 bg-red-100 blur-2xl rounded-full opacity-50" />
-            <div className="relative bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-              <ShieldAlert className="w-12 h-12 text-red-500" />
+            {/* Soft glow behind icon */}
+            <div className="absolute inset-0 bg-red-50 blur-3xl rounded-full opacity-60" />
+            <div className="relative bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-center">
+              <ShieldAlert className="w-10 h-10 text-red-500" strokeWidth={1.5} />
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-compliance-blue p-1.5 rounded-lg shadow-lg">
-              <Lock className="w-4 h-4 text-white" />
+            <div className="absolute -bottom-1 -right-1 bg-[#003366] p-2 rounded-xl shadow-lg border-2 border-white">
+              <Lock className="w-3.5 h-3.5 text-white" />
             </div>
           </div>
         </div>
 
-        {/* Text Content */}
-        <div className="space-y-3">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight italic">
-            PHItag <span className="text-red-500">Secure Gate</span>
-          </h1>
-          <div className="h-1 w-12 bg-red-500 mx-auto rounded-full" />
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest pt-2">
-            Access Level: Restricted
-          </p>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Your current identity does not have the clearance required to access the 
-            <span className="font-bold text-slate-600"> Control Plane</span>. 
-            Please sign in with an authorized administrative account.
+        {/* Messaging */}
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black text-[#003366] tracking-tighter italic">
+              PHItag <span className="text-red-500 not-italic">Secure Gate</span>
+            </h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+              Access Level: Restricted
+            </p>
+          </div>
+          
+          <div className="h-0.5 w-8 bg-slate-100 mx-auto" />
+          
+          <p className="text-slate-500 text-sm leading-relaxed px-2 font-medium">
+            Your identity has been authenticated, but you lack the 
+            <span className="text-[#003366] font-bold"> clearance level</span> required for this sector of the Control Plane.
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-3">
+        {/* Action Buttons with explicit Hand/Figure cursor */}
+        <div className="flex flex-col gap-4 pt-2">
           <Link 
             href="/login" 
-            className="w-full py-3 bg-compliance-blue text-white rounded-xl font-bold text-sm shadow-lg hover:bg-blue-800 transition-all active:scale-[0.98]"
+            className="group relative w-full py-4 bg-[#003366] text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all active:scale-[0.98] cursor-pointer overflow-hidden"
           >
-            Sign In to PHItag
+            <div className="relative z-10 flex items-center justify-center gap-2">
+              <Fingerprint size={16} className="text-blue-300" />
+              Request Administrative Access
+            </div>
+            {/* Subtle hover shine */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           </Link>
+
           <Link 
             href="/" 
-            className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-[#003366] transition-colors cursor-pointer group"
           >
-            <ArrowLeft size={14} /> Back to Dashboard
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> 
+            Exit to Secure Dashboard
           </Link>
         </div>
 
-        {/* Footer Code */}
-        <div className="pt-4 border-t border-gray-50">
-          <p className="text-[10px] font-mono text-slate-300 uppercase">
-            Error Code: 403_RESTRICTED_ACCESS_GOVERNANCE
+        {/* Forensic Footer */}
+        <div className="pt-6 border-t border-slate-50 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2 text-[9px] font-mono text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-red-400/20 flex items-center justify-center">
+               <span className="w-1 h-1 rounded-full bg-red-500" />
+            </span>
+            LOG_ID: {Math.random().toString(36).substring(7).toUpperCase()}
+          </div>
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">
+            Error 403: Insufficient Governance Privileges
           </p>
         </div>
       </div>
