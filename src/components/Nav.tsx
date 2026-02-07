@@ -1,11 +1,14 @@
 "use client";
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useSession, signIn, signOut } from "next-auth/react"; // Cleaned up imports
+import { useSession, signIn, signOut } from "next-auth/react";
 import { 
   UserCircle, ChevronDown, Clock, Search, 
-  Zap, ArrowUpRight, Settings, ClipboardList, HardDrive, FileSearch 
+  Zap, ArrowUpRight, Settings, ClipboardList, 
+  HardDrive, FileSearch 
 } from 'lucide-react';
 
 export default function Nav() {
@@ -14,6 +17,7 @@ export default function Nav() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
+  // Clock & Dropdown Management
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -38,24 +42,38 @@ export default function Nav() {
 
   return (
     <header className="shrink-0 bg-white border-b border-gray-200 z-50">
+      
       {/* TIER 1: GLOBAL NAV */}
       <div className="h-14 px-8 flex items-center justify-between border-b border-gray-50">
         <div className="flex items-center gap-12">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="bg-blue-600 p-1 rounded-lg">
-              <Zap size={18} className="text-white fill-white" />
-            </div>
-            <span className="font-black text-xl tracking-tighter text-compliance-blue italic">PHItag</span>
+          {/* Logo Section */}
+          <Link href="/" className="flex items-center gap-1 group">
+            <Image 
+              src="/logo.png" 
+              alt="PHItag Logo" 
+              width={30} 
+              height={25} 
+              className="object-contain"
+              priority 
+            />
+            <span className="font-black text-xl tracking-tighter text-compliance-blue italic">
+              PHItag
+            </span>
           </Link>
 
+          {/* Navigation Links */}
           <nav className="flex items-center gap-8 text-[13px] font-bold text-slate-500 tracking-tight">
-            <div className="relative" onMouseEnter={() => setIsSuiteOpen(true)} onMouseLeave={() => setIsSuiteOpen(false)}>
+            <div 
+              className="relative" 
+              onMouseEnter={() => setIsSuiteOpen(true)} 
+              onMouseLeave={() => setIsSuiteOpen(false)}
+            >
               <button className={`flex items-center gap-1 hover:text-blue-600 transition-colors py-4 ${isSuiteOpen ? 'text-blue-600' : ''}`}>
                 Governance Suite <ChevronDown size={14} className={`transition-transform duration-200 ${isSuiteOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isSuiteOpen && (
-                <div className="absolute top-[100%] -left-4 w-[480px] bg-white border border-gray-200 shadow-2xl rounded-3xl p-6 flex gap-8">
+                <div className="absolute top-[100%] -left-4 w-[480px] bg-white border border-gray-200 shadow-2xl rounded-3xl p-6 flex gap-8 z-50">
                   <div className="flex-1 space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Build & Enforce</h4>
                     {suiteModules.enforcement.map((link) => (
@@ -78,33 +96,32 @@ export default function Nav() {
                 </div>
               )}
             </div>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/solutions">Solutions</Link>
-            <Link href="/about">About</Link>
-            <Link href="/docs">Documentation</Link>
+            <Link href="/pricing" className="hover:text-blue-600 transition-colors">Pricing</Link>
+            <Link href="/solutions" className="hover:text-blue-600 transition-colors">Solutions</Link>
+            <Link href="/about" className="hover:text-blue-600 transition-colors">About</Link>
+            <Link href="/docs" className="hover:text-blue-600 transition-colors">Documentation</Link>
           </nav>
         </div>
 
+        {/* Global Actions */}
         <div className="flex items-center gap-6">
           <Search size={18} className="text-slate-400 cursor-pointer hover:text-blue-600 transition-colors" />
           <div className="flex items-center gap-5">
-            {/* 🔐 AUTH LOGIC BUTTON START */}
-{!session ? (
-  <Link 
-    href="/login" 
-    className="text-[11px] font-bold text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
-  >
-    Sign In
-  </Link>
-) : (
-  <button 
-    onClick={() => signOut()}
-    className="text-[11px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors"
-  >
-    Sign Out
-  </button>
-)}
-            {/* 🔐 AUTH LOGIC BUTTON END */}
+            {!session ? (
+              <button 
+                onClick={() => signIn()} 
+                className="text-[11px] font-bold text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+              >
+                Sign In
+              </button>
+            ) : (
+              <button 
+                onClick={() => signOut()}
+                className="text-[11px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors"
+              >
+                Sign Out
+              </button>
+            )}
 
             <Link href="/pricing" className="text-[10px] font-extrabold bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-lg shadow-blue-100 hover:bg-blue-700 hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-[0.1em]">
               Get Started <ArrowUpRight size={14} />
@@ -129,9 +146,13 @@ export default function Nav() {
         </div>
         
         <div className="flex items-center gap-4">
-          <Link href="/settings" className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-400 hover:text-blue-600">
-            <Settings size={18} />
-          </Link>
+          {/* Security: Settings only visible to logged in users */}
+          {session && (
+            <Link href="/settings" className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-400 hover:text-blue-600">
+              <Settings size={18} />
+            </Link>
+          )}
+
           <div className="flex items-center gap-2.5 pl-4 border-l border-slate-200">
             <div className="text-right">
               <p className="text-[11px] font-black text-compliance-blue leading-none text-right tracking-tight">
@@ -141,13 +162,17 @@ export default function Nav() {
                 {session ? "Control Plane Access" : "Identity Pending"}
               </p>
             </div>
-            <div className="bg-white p-1 rounded-full border border-slate-200 shadow-sm text-slate-300">
-               {session?.user?.image ? (
-                 <img src={session.user.image} className="w-6 h-6 rounded-full" alt="profile" />
-               ) : (
-                 <UserCircle size={24} />
-               )}
-            </div>
+            
+            {/* Security: Profile circle only visible to logged in users */}
+            {session && (
+              <div className="bg-white p-1 rounded-full border border-slate-200 shadow-sm text-slate-300 overflow-hidden">
+                 {session.user?.image ? (
+                   <img src={session.user.image} className="w-6 h-6 rounded-full" alt="profile" />
+                 ) : (
+                   <UserCircle size={24} />
+                 )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -17,8 +17,25 @@ const handler = NextAuth({
     }),
   ],
   pages: {
-    signIn: '/login', 
+    signIn: '/login',      // Your custom login page
+    error: '/unauthorized', // Redirects here if there is an auth error
   },
+  callbacks: {
+    // This runs whenever a user tries to sign in
+    async signIn({ user, account, profile }) {
+      // Logic tip: You can restrict access to specific emails here later
+      return true;
+    },
+    // This ensures the session object in your components has the user's ID
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = token.sub;
+      }
+      return session;
+    },
+  },
+  // Use a secret for production (add this to your .env)
+  secret: process.env.NEXTAUTH_SECRET,
 });
 
 export { handler as GET, handler as POST };
