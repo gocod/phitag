@@ -2,22 +2,28 @@
 import React, { useState } from 'react';
 import { 
   Settings2, Zap, CheckCircle2, Activity, Upload, 
-  Terminal, ShieldAlert, X, Loader2, Cloud
+  Terminal, ShieldAlert, X, Loader2, Cloud, Info
 } from 'lucide-react';
 import { complianceSettings } from '@/lib/complianceStore';
 
-// 1. INDUSTRY STANDARD DEFAULTS (From your Healthcare Tagging Manifesto)
+// 1. UPDATED INDUSTRY STANDARD DEFAULTS (All 16 Keys from PDF Manifesto)
 const MANIFESTO_DEFAULTS = [
-  { key: "BusinessUnit", requirement: "Mandatory", desc: "Clinical, Research, or Ops", status: "Active" },
-  { key: "ContainsPHI", requirement: "Mandatory", desc: "Critical HIPAA flag", status: "Active" },
-  { key: "DataClassification", requirement: "Mandatory", desc: "PHI, PII, or Internal", status: "Active" },
+  { key: "BusinessUnit", requirement: "Mandatory", desc: "Clinical, Research, Billing, Ops, or IT", status: "Active" },
+  { key: "ApplicationName", requirement: "Mandatory", desc: "EpicEMR, Patient Portal, etc.", status: "Active" },
   { key: "Environment", requirement: "Mandatory", desc: "Prod, NonProd, Dev, Test, DR", status: "Active" },
-  { key: "Owner", requirement: "Mandatory", desc: "Technical/Business accountability", status: "Active" },
-  { key: "CostCenter", requirement: "Mandatory", desc: "Healthcare cost allocation", status: "Active" },
+  { key: "Owner", requirement: "Mandatory", desc: "Technical/Business email accountability", status: "Active" },
+  { key: "CostCenter", requirement: "Mandatory", desc: "Approved healthcare cost centers", status: "Active" },
+  { key: "DataClassification", requirement: "Mandatory", desc: "PHI, PII, Internal, or Public", status: "Active" },
   { key: "Criticality", requirement: "Mandatory", desc: "Tier1 (Life Critical) to Tier3", status: "Active" },
-  { key: "EncryptionRequired", requirement: "Conditional", desc: "Required if PHI is Yes", status: "Active" },
-  { key: "SecurityZone", requirement: "Mandatory", desc: "Internet vs Restricted", status: "Active" },
-  { key: "ComplianceScope", requirement: "Mandatory", desc: "HIPAA, HITRUST, etc.", status: "Active" }
+  { key: "ContainsPHI", requirement: "Mandatory", desc: "Identifies protected health info (Yes/No)", status: "Active" },
+  { key: "HIPAAZone", requirement: "Conditional", desc: "Required if ContainsPHI = Yes", status: "Active" },
+  { key: "EncryptionRequired", requirement: "Conditional", desc: "Required if ContainsPHI = Yes", status: "Active" },
+  { key: "BackupPolicy", requirement: "Mandatory", desc: "Hourly, Daily, Weekly, or None", status: "Active" },
+  { key: "DRClass", requirement: "Mandatory", desc: "Recovery Tier: Hot, Warm, or Cold", status: "Active" },
+  { key: "SecurityZone", requirement: "Mandatory", desc: "Internet, Internal, or Restricted", status: "Active" },
+  { key: "ComplianceScope", requirement: "Mandatory", desc: "HIPAA, SOX, HITRUST, etc.", status: "Active" },
+  { key: "ProjectCode", requirement: "Recommended", desc: "Internal project/funding code", status: "Active" },
+  { key: "BudgetOwner", requirement: "Recommended", desc: "Executive responsible for costs", status: "Active" }
 ];
 
 export default function SchemaPage() {
@@ -25,9 +31,8 @@ export default function SchemaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [dangerZone, setDangerZone] = useState(complianceSettings.forceNonCompliant);
 
-  // 📂 HANDLE DYNAMIC UPLOADS
+  // 📂 HANDLE DYNAMIC UPLOADS (Import Policy Button)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -35,7 +40,7 @@ export default function SchemaPage() {
       setTimeout(() => {
         setPolicies(prev => [
           ...prev, 
-          { key: "Custom_Internal_ID", requirement: "Optional", desc: "Custom imported tag", status: "Active" }
+          { key: "Custom_Internal_ID", requirement: "Optional", desc: "User-defined tagging schema", status: "Active" }
         ]);
         setIsTyping(false);
       }, 1500);
@@ -48,7 +53,7 @@ export default function SchemaPage() {
     try {
       const res = await fetch("/api/azure/scan", { method: "POST" });
       if (res.ok) {
-        // Success logic
+        // You could redirect to Dashboard here to see results
         setTimeout(() => {
           setIsSyncing(false);
           setIsModalOpen(false);
@@ -70,7 +75,7 @@ export default function SchemaPage() {
             <Settings2 size={32} className="text-blue-600" />
             Policy Engine
           </h1>
-          <p className="text-slate-500 mt-2">Enforcing HIPAA Manifesto v1.2</p>
+          <p className="text-slate-500 mt-2">Enforcing HIPAA Manifesto v1.2 (16 Core Keys)</p>
         </div>
         
         <div className="flex gap-3">
@@ -95,7 +100,7 @@ export default function SchemaPage() {
             <Activity size={18} className="text-blue-600" />
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Active Policy Schema</h3>
           </div>
-          {isTyping && <span className="text-xs text-blue-600 animate-pulse font-bold">Processing new policy...</span>}
+          {isTyping && <span className="text-xs text-blue-600 animate-pulse font-bold">Processing custom schema...</span>}
         </div>
         <table className="w-full text-left">
           <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase border-b border-slate-100">
@@ -119,7 +124,9 @@ export default function SchemaPage() {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    policy.requirement === 'Mandatory' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'
+                    policy.requirement === 'Mandatory' ? 'bg-red-50 text-red-600' : 
+                    policy.requirement === 'Conditional' ? 'bg-amber-50 text-amber-600' :
+                    'bg-slate-100 text-slate-600'
                   }`}>
                     {policy.requirement}
                   </span>
@@ -149,16 +156,16 @@ export default function SchemaPage() {
             <h3 className="text-2xl font-black text-slate-900 mb-2">Sync with Azure</h3>
             <p className="text-slate-500 text-sm mb-8 leading-relaxed">
               This will trigger a real-time scan of your Resource Groups to identify drift from the 
-              <strong> HIPAA Manifesto</strong> schema defined above.
+              <strong> HIPAA Manifesto</strong> schema defined in your policy engine.
             </p>
 
             <button 
               onClick={runAzureSync}
               disabled={isSyncing}
-              className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50"
+              className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50 shadow-xl shadow-slate-200"
             >
               {isSyncing ? (
-                <><Loader2 className="animate-spin" /> Analyzing Subscriptions...</>
+                <><Loader2 className="animate-spin" /> Identifying Drift...</>
               ) : (
                 <>Start Compliance Scan</>
               )}
