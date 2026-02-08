@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { 
   Settings, Key, ShieldAlert, 
   Save, RefreshCcw, ExternalLink,
-  ChevronRight
+  ChevronRight, Database // Added Database icon for Subscription
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [mode, setMode] = useState<'audit' | 'enforce'>('audit');
+  // Added state for Subscription ID
+  const [subscriptionId, setSubscriptionId] = useState('05a44b97-8004-4607-a03b-88ae8a9c98ae');
 
   return (
     <div className="max-w-4xl space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
@@ -34,7 +36,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <h2 className="font-bold text-slate-800">Azure Service Principal</h2>
-              <p className="text-[10px] text-slate-400 font-medium">Last synced: 2 mins ago</p>
+              <p className="text-[10px] text-slate-400 font-medium">Last synced: Just now</p>
             </div>
           </div>
           <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-full uppercase tracking-widest border border-emerald-100">
@@ -43,6 +45,21 @@ export default function SettingsPage() {
         </div>
         
         <div className="p-8 space-y-6">
+          {/* NEW: Subscription ID Field */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <Database size={10} /> Active Subscription ID
+            </label>
+            <input 
+              type="text" 
+              value={subscriptionId} 
+              onChange={(e) => setSubscriptionId(e.target.value)}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl text-xs font-mono text-blue-900 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" 
+            />
+            <p className="text-[9px] text-slate-400 ml-1">The target subscription where PHI resources are deployed.</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Directory (Tenant) ID</label>
@@ -53,6 +70,7 @@ export default function SettingsPage() {
               <input type="text" readOnly value="492088bf-99f1-41af-22ab-2d7cd011db99" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-600 outline-none cursor-not-allowed" />
             </div>
           </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Client Secret</label>
             <div className="relative">

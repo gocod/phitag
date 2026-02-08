@@ -1,175 +1,244 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Settings2, Zap, CheckCircle2, Activity, Upload, 
-  Terminal, ShieldAlert, X, Loader2, Cloud, Info
+  Settings2, Zap, Activity, Upload, 
+  Trash2, RotateCcw, Loader2, Cloud, 
+  FileCode, FileText, ShieldAlert
 } from 'lucide-react';
-import { complianceSettings } from '@/lib/complianceStore';
 
-// 1. UPDATED INDUSTRY STANDARD DEFAULTS (All 16 Keys from PDF Manifesto)
 const MANIFESTO_DEFAULTS = [
-  { key: "BusinessUnit", requirement: "Mandatory", desc: "Clinical, Research, Billing, Ops, or IT", status: "Active" },
-  { key: "ApplicationName", requirement: "Mandatory", desc: "EpicEMR, Patient Portal, etc.", status: "Active" },
-  { key: "Environment", requirement: "Mandatory", desc: "Prod, NonProd, Dev, Test, DR", status: "Active" },
-  { key: "Owner", requirement: "Mandatory", desc: "Technical/Business email accountability", status: "Active" },
-  { key: "CostCenter", requirement: "Mandatory", desc: "Approved healthcare cost centers", status: "Active" },
-  { key: "DataClassification", requirement: "Mandatory", desc: "PHI, PII, Internal, or Public", status: "Active" },
-  { key: "Criticality", requirement: "Mandatory", desc: "Tier1 (Life Critical) to Tier3", status: "Active" },
-  { key: "ContainsPHI", requirement: "Mandatory", desc: "Identifies protected health info (Yes/No)", status: "Active" },
-  { key: "HIPAAZone", requirement: "Conditional", desc: "Required if ContainsPHI = Yes", status: "Active" },
-  { key: "EncryptionRequired", requirement: "Conditional", desc: "Required if ContainsPHI = Yes", status: "Active" },
-  { key: "BackupPolicy", requirement: "Mandatory", desc: "Hourly, Daily, Weekly, or None", status: "Active" },
-  { key: "DRClass", requirement: "Mandatory", desc: "Recovery Tier: Hot, Warm, or Cold", status: "Active" },
-  { key: "SecurityZone", requirement: "Mandatory", desc: "Internet, Internal, or Restricted", status: "Active" },
-  { key: "ComplianceScope", requirement: "Mandatory", desc: "HIPAA, SOX, HITRUST, etc.", status: "Active" },
-  { key: "ProjectCode", requirement: "Recommended", desc: "Internal project/funding code", status: "Active" },
-  { key: "BudgetOwner", requirement: "Recommended", desc: "Executive responsible for costs", status: "Active" }
+  { key: "BusinessUnit", requirement: "Mandatory", desc: "Clinical, Research, Billing, Ops, or IT" },
+  { key: "ApplicationName", requirement: "Mandatory", desc: "EpicEMR, Patient Portal, etc." },
+  { key: "Environment", requirement: "Mandatory", desc: "Prod, NonProd, Dev, Test, DR" },
+  { key: "Owner", requirement: "Mandatory", desc: "Technical/Business email accountability" },
+  { key: "CostCenter", requirement: "Mandatory", desc: "Approved healthcare cost centers" },
+  { key: "DataClassification", requirement: "Mandatory", desc: "PHI, PII, Internal, or Public" },
+  { key: "Criticality", requirement: "Mandatory", desc: "Tier1 (Life Critical) to Tier3" },
+  { key: "ContainsPHI", requirement: "Mandatory", desc: "Identifies protected health info (Yes/No)" },
+  { key: "HIPAAZone", requirement: "Conditional", desc: "Required if ContainsPHI = Yes" },
+  { key: "EncryptionRequired", requirement: "Conditional", desc: "Required if ContainsPHI = Yes" },
+  { key: "BackupPolicy", requirement: "Mandatory", desc: "Hourly, Daily, Weekly, or None" },
+  { key: "DRClass", requirement: "Mandatory", desc: "Recovery Tier: Hot, Warm, or Cold" },
+  { key: "SecurityZone", requirement: "Mandatory", desc: "Internet, Internal, or Restricted" },
+  { key: "ComplianceScope", requirement: "Mandatory", desc: "HIPAA, SOX, HITRUST, etc." },
+  { key: "ProjectCode", requirement: "Recommended", desc: "Internal project/funding code" },
+  { key: "BudgetOwner", requirement: "Recommended", desc: "Executive responsible for costs" }
 ];
 
 export default function SchemaPage() {
   const [policies, setPolicies] = useState(MANIFESTO_DEFAULTS);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // 📂 HANDLE DYNAMIC UPLOADS (Import Policy Button)
+  useEffect(() => {
+    const saved = localStorage.getItem("phiTag_active_policy");
+    if (saved) {
+      try { 
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setPolicies(parsed);
+      } catch (e) { console.error(e); }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("phiTag_active_policy", JSON.stringify(policies));
+  }, [policies, isLoaded]);
+
+  // --- HANDLERS ---
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsTyping(true);
-      setTimeout(() => {
-        setPolicies(prev => [
-          ...prev, 
-          { key: "Custom_Internal_ID", requirement: "Optional", desc: "User-defined tagging schema", status: "Active" }
-        ]);
-        setIsTyping(false);
-      }, 1500);
+      setIsProcessing(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          if (Array.isArray(json)) {
+            setPolicies(json);
+          }
+        } catch (err) {
+          alert("Invalid JSON file.");
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
-  // ⚡ TRIGGER REAL AZURE SCAN
-  const runAzureSync = async () => {
-    setIsSyncing(true);
-    try {
-      const res = await fetch("/api/azure/scan", { method: "POST" });
-      if (res.ok) {
-        // You could redirect to Dashboard here to see results
-        setTimeout(() => {
-          setIsSyncing(false);
-          setIsModalOpen(false);
-        }, 2000);
-      }
-    } catch (err) {
-      console.error("Sync failed");
-      setIsSyncing(false);
+  const exportTerraform = () => {
+    const mandatoryTags = policies
+      .filter(p => p.requirement === "Mandatory")
+      .map(p => `    "${p.key}" = "string" # ${p.desc}`)
+      .join("\n");
+
+    const tfContent = `/* Generated Azure Tagging Policy */\nvariable "mandatory_tags" {\n  type = map(string)\n  default = {\n${mandatoryTags}\n  }\n}`;
+    downloadFile(tfContent, "azure_policy.tf");
+  };
+
+  const exportAuditReport = () => {
+    const reportHeader = `PHITag Audit Report\nGenerated: ${new Date().toLocaleString()}\nTotal Rules: ${policies.length}\n` + "=".repeat(30) + "\n\n";
+    // Ensures all keys currently in state (defaulting to 16) are exported
+    const reportBody = policies.map(p => `[${p.requirement}] ${p.key}: ${p.desc}`).join("\n");
+    downloadFile(reportHeader + reportBody, "audit_manifesto.txt");
+  };
+
+  const downloadFile = (content: string, fileName: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const resetToManifesto = () => {
+    if (confirm("Restore the default 16 HIPAA Manifesto keys?")) {
+      setPolicies(MANIFESTO_DEFAULTS);
     }
   };
+
+  if (!isLoaded) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20 py-10">
+    <div className="max-w-6xl mx-auto py-10 px-6 space-y-8">
       
-      {/* HEADER */}
-      <header className="flex justify-between items-end">
+      {/* HEADER: Policy Controls */}
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Settings2 size={32} className="text-blue-600" />
+          <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
+            <Settings2 size={36} className="text-blue-600" />
             Policy Engine
           </h1>
-          <p className="text-slate-500 mt-2">Enforcing HIPAA Manifesto v1.2 (16 Core Keys)</p>
+          <p className="text-slate-500 font-medium mt-1">
+            Standard: {policies.length} HIPAA Tag Requirements
+          </p>
         </div>
         
-        <div className="flex gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 border border-emerald-200 text-emerald-600 rounded-lg text-sm font-bold hover:bg-emerald-50 cursor-pointer transition-all">
-            <Upload size={18} /> Import Policy
-            <input type="file" className="hidden" onChange={handleFileUpload} />
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={resetToManifesto}
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-all"
+          >
+            <RotateCcw size={16} /> Reset
+          </button>
+
+          <label className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-emerald-200 text-emerald-700 bg-emerald-50 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all">
+            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            Overwrite Policy
+            <input type="file" className="hidden" onChange={handleFileUpload} accept=".json" />
           </label>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all"
+            onClick={exportTerraform}
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black shadow-lg transition-all"
           >
-            <Zap size={18} /> Connect Azure
+            <FileCode size={16} /> Export Terraform
+          </button>
+          
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg transition-all"
+          >
+            <Zap size={16} /> Connect Azure
           </button>
         </div>
       </header>
 
-      {/* POLICY TABLE */}
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+      {/* MAIN DATA TABLE */}
+      <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Activity size={18} className="text-blue-600" />
-            <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Active Policy Schema</h3>
+            <Activity size={20} className="text-blue-600" />
+            <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest">Active Manifesto</h3>
           </div>
-          {isTyping && <span className="text-xs text-blue-600 animate-pulse font-bold">Processing custom schema...</span>}
+          <button 
+            onClick={exportAuditReport} 
+            className="cursor-pointer flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <FileText size={14} className="text-blue-500" /> Generate Audit Report
+          </button>
         </div>
-        <table className="w-full text-left">
-          <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase border-b border-slate-100">
-            <tr>
-              <th className="px-6 py-3 text-center w-16">Status</th>
-              <th className="px-6 py-3">Tag Key</th>
-              <th className="px-6 py-3">Requirement</th>
-              <th className="px-6 py-3">Logic Description</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {policies.map((policy) => (
-              <tr key={policy.key} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-center">
-                  <CheckCircle2 size={18} className="text-green-500 mx-auto" />
-                </td>
-                <td className="px-6 py-4">
-                  <code className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-mono font-bold">
-                    {policy.key}
-                  </code>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    policy.requirement === 'Mandatory' ? 'bg-red-50 text-red-600' : 
-                    policy.requirement === 'Conditional' ? 'bg-amber-50 text-amber-600' :
-                    'bg-slate-100 text-slate-600'
-                  }`}>
-                    {policy.requirement}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-xs text-slate-500 font-medium">
-                  {policy.desc}
-                </td>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-white text-[11px] font-bold text-slate-400 uppercase border-b border-slate-100">
+              <tr>
+                <th className="px-8 py-4">Tag Key</th>
+                <th className="px-8 py-4">Requirement</th>
+                <th className="px-8 py-4">Governance Logic</th>
+                <th className="px-8 py-4 text-right">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {policies.map((p) => (
+                <tr key={p.key} className="group hover:bg-blue-50/30 transition-colors">
+                  <td className="px-8 py-5 text-sm font-bold text-blue-700">
+                    <code className="bg-blue-50 px-2.5 py-1 rounded-lg">{p.key}</code>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-full border ${
+                      p.requirement === 'Mandatory' ? 'bg-red-50 text-red-600 border-red-100' : 
+                      p.requirement === 'Conditional' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                      'bg-slate-50 text-slate-500 border-slate-100'
+                    }`}>
+                      {p.requirement.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5 text-sm text-slate-500 font-medium leading-relaxed">
+                    {p.desc}
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <button 
+                      onClick={() => setPolicies(policies.filter(item => item.key !== p.key))}
+                      className="cursor-pointer text-slate-300 hover:text-red-500 transition-colors p-2"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {policies.length === 0 && (
+            <div className="p-20 text-center">
+              <ShieldAlert size={48} className="mx-auto mb-4 text-slate-200" />
+              <p className="text-slate-400 font-medium">No policies defined.</p>
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* AZURE MODAL */}
+      {/* SYNC MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] max-w-md w-full p-8 shadow-2xl animate-in zoom-in duration-300">
-            <div className="flex justify-between items-start mb-6">
-              <div className="bg-blue-100 p-3 rounded-2xl">
-                <Cloud className="text-blue-600" size={24} />
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={24} />
+          <div className="bg-white rounded-[3rem] max-w-md w-full p-10 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+              <Cloud className="text-blue-600" size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Connect Azure</h3>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed">
+              Scan for these <strong>{policies.length} tag rules</strong> across your Azure subscriptions.
+            </p>
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="cursor-pointer w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-black transition-all"
+              >
+                Begin Compliance Scan
+              </button>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="cursor-pointer w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+              >
+                Cancel
               </button>
             </div>
-            
-            <h3 className="text-2xl font-black text-slate-900 mb-2">Sync with Azure</h3>
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-              This will trigger a real-time scan of your Resource Groups to identify drift from the 
-              <strong> HIPAA Manifesto</strong> schema defined in your policy engine.
-            </p>
-
-            <button 
-              onClick={runAzureSync}
-              disabled={isSyncing}
-              className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50 shadow-xl shadow-slate-200"
-            >
-              {isSyncing ? (
-                <><Loader2 className="animate-spin" /> Identifying Drift...</>
-              ) : (
-                <>Start Compliance Scan</>
-              )}
-            </button>
           </div>
         </div>
       )}

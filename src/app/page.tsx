@@ -2,31 +2,34 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  ShieldCheck, 
-  Lock, 
-  Zap, 
-  ArrowRight, 
-  Activity, 
-  FileCheck,
-  CheckCircle2,
-  ArrowUpRight,
-  Loader2
+  ShieldCheck, Lock, Zap, ArrowRight, Activity, 
+  FileCheck, CheckCircle2, ArrowUpRight, Loader2
 } from 'lucide-react';
 
 export default function HomePage() {
-  // 1. Setup state for live data
   const [stats, setStats] = useState({ total: 0, score: 0, phidatasets: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Fetch data from your Azure Scan API on mount
   useEffect(() => {
     async function getLiveAzureStats() {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/azure/scan', { method: 'POST' });
+
+        // 1. GET THE PERSISTED POLICY
+        // We grab the custom policy the user set up in the Schema page
+        const savedPolicy = localStorage.getItem("phiTag_active_policy");
+        const activeSchema = savedPolicy ? JSON.parse(savedPolicy) : [];
+
+        // 2. SEND THE SCHEMA TO THE SCAN API
+        // This ensures the compliance score is based on the CURRENT policy
+        const response = await fetch('/api/azure/scan', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schema: activeSchema }) 
+        });
+        
         const data = await response.json();
 
-        // Adjust these keys based on your exact API response structure
         setStats({
           total: data.totalResources || 0,
           score: data.complianceScore || 0,
@@ -38,24 +41,25 @@ export default function HomePage() {
         setIsLoading(false);
       }
     }
+    
     getLiveAzureStats();
   }, []);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-16 pb-20 animate-in fade-in duration-700">
+    <div className="max-w-5xl mx-auto space-y-16 pb-20 animate-in fade-in duration-700 px-4">
       
       {/* 🚀 HERO SECTION */}
       <section className="text-center pt-10 space-y-6">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold mb-4">
-          <Activity size={14} /> Built for HIPAA Compliance
+          <Activity size={14} /> HIPAA Compliance Engine
         </div>
         <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
           Cloud Governance for <br />
           <span className="text-blue-600">Modern Healthcare</span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto">
-          PHItag automates the tedious process of resource tagging in Azure, 
-          ensuring your PHI data is always identified, encrypted, and audit-ready.
+          PHItag automates resource tagging in Azure, ensuring your PHI data 
+          is identified and audit-ready based on your custom schema.
         </p>
         <div className="flex justify-center gap-4 pt-4">
           <Link href="/schema" className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2 group">
@@ -73,7 +77,7 @@ export default function HomePage() {
            <div className="h-px flex-1 bg-slate-100"></div>
            <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
              {isLoading && <Loader2 size={12} className="animate-spin" />}
-             {isLoading ? "Scanning Azure..." : "Live Environment Snapshot"}
+             {isLoading ? "Analyzing Policy Drift..." : "Live Environment Snapshot"}
            </span>
            <div className="h-px flex-1 bg-slate-100"></div>
         </div>
@@ -103,19 +107,19 @@ export default function HomePage() {
             </p>
             {!isLoading && (
               <p className="text-[10px] mt-2 font-medium text-green-600/60 flex items-center gap-1">
-                <ArrowUpRight size={12} /> Live Scan Result
+                <ArrowUpRight size={12} /> Validated vs Active Policy
               </p>
             )}
           </div>
         </div>
       </section>
 
-      {/* 🏥 THE PROBLEM / SOLUTION GRID */}
+      {/* 🏥 FEATURES SECTION */}
       <section className="grid md:grid-cols-3 gap-8">
         {[
-          { icon: <ShieldCheck size={24} />, title: "Eliminate Tag Drift", color: "bg-red-50 text-red-600", desc: "Stop worrying about developers forgetting mandatory tags. Our engine detects and alerts on violations." },
+          { icon: <ShieldCheck size={24} />, title: "Eliminate Tag Drift", color: "bg-red-50 text-red-600", desc: "Stop worrying about missing tags. Our engine detects and alerts on violations against your schema." },
           { icon: <Lock size={24} />, title: "PHI Identification", color: "bg-blue-50 text-blue-600", desc: "Automatically verify if resources containing PHI meet your organization's encryption standards." },
-          { icon: <FileCheck size={24} />, title: "Audit Readiness", color: "bg-green-50 text-green-600", desc: "Generate Terraform-ready policy exports and compliance reports to satisfy auditors instantly." }
+          { icon: <FileCheck size={24} />, title: "Audit Readiness", color: "bg-green-50 text-green-600", desc: "Generate compliance reports to satisfy auditors instantly with live Azure data." }
         ].map((item, idx) => (
           <div key={idx} className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm space-y-4">
             <div className={`w-12 h-12 ${item.color} rounded-lg flex items-center justify-center`}>
@@ -133,21 +137,21 @@ export default function HomePage() {
           <div className="space-y-6">
             <h2 className="text-3xl font-bold italic tracking-tight">Bridging the gap between <br />IT and Compliance.</h2>
             <p className="text-slate-400 leading-relaxed">
-              Healthcare cloud environments are complex. PHItag provides a unified dashboard where Compliance Officers and DevOps Engineers speak the same language.
+              PHItag provides a unified dashboard where Compliance Officers and DevOps Engineers track tagging requirements in real-time.
             </p>
             <ul className="space-y-3 text-sm font-medium">
-              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Automated Azure Resource Discovery</li>
-              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Customizable Metadata Schema</li>
-              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Infrastructure-as-Code Policy Export</li>
+              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Automated Azure Discovery</li>
+              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Persistent Policy Engine</li>
+              <li className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /> Instant Drift Identification</li>
             </ul>
           </div>
           
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
             <div className="flex justify-between items-center mb-6">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Environment Pulse</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Policy Health</span>
               <span className="text-green-400 text-xs font-bold flex items-center gap-1">
                 <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-slate-500' : 'bg-green-400 animate-pulse'}`}></span>
-                {isLoading ? "Scanning..." : "Active"}
+                {isLoading ? "Syncing..." : "Active"}
               </span>
             </div>
             <div className="space-y-4">
@@ -158,7 +162,7 @@ export default function HomePage() {
                 ></div>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Compliance Health</span>
+                <span className="text-slate-400">Compliance Score</span>
                 <span className="font-bold">{isLoading ? "---" : `${stats.score}%`}</span>
               </div>
             </div>
