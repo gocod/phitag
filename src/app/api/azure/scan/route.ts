@@ -2,12 +2,20 @@ import { NextResponse } from "next/server";
 import { ClientSecretCredential } from "@azure/identity";
 import { ResourceManagementClient } from "@azure/arm-resources";
 
-// Define the "Gold Standard" for Healthcare Tags
-const MANDATORY_HEALTHCARE_TAGS = [
-  "ContainsPHI",
-  "DataClassification",
+// 1. The "Gold Standard" from your Healthcare Tagging Manifesto
+const MANDATORY_TAGS = [
+  "BusinessUnit",
+  "ApplicationName",
   "Environment",
-  "Owner"
+  "Owner",
+  "CostCenter",
+  "DataClassification",
+  "Criticality",
+  "ContainsPHI",
+  "BackupPolicy",
+  "DRClass",
+  "SecurityZone",
+  "ComplianceScope"
 ];
 
 export async function POST(req: Request) {
@@ -30,16 +38,22 @@ export async function POST(req: Request) {
     const resources = [];
     let compliantCount = 0;
 
+    // Iterate through all resources in the subscription
     for await (const resource of client.resources.list()) {
       const tags = resource.tags || {};
       
-      // 1. ADVANCED LOGIC: Check for specific Healthcare Keys
-      const missingTags = MANDATORY_HEALTHCARE_TAGS.filter(tag => !tags[tag]);
-      const isCompliant = missingTags.length === 0;
+      // Check for the base 12 mandatory tags
+      let missingTags = MANDATORY_TAGS.filter(tag => !tags[tag]);
 
-      if (isCompliant) {
-        compliantCount++;
+      // 2. CONDITIONAL LOGIC: If PHI is present, ensure extra security tags exist
+      const hasPHI = tags["ContainsPHI"]?.toLowerCase() === "yes";
+      if (hasPHI) {
+        if (!tags["HIPAAZone"]) missingTags.push("HIPAAZone");
+        if (!tags["EncryptionRequired"]) missingTags.push("EncryptionRequired");
       }
+
+      const isCompliant = missingTags.length === 0;
+      if (isCompliant) compliantCount++;
 
       resources.push({
         id: resource.id,
@@ -48,21 +62,22 @@ export async function POST(req: Request) {
         location: resource.location,
         tags: tags,
         isCompliant: isCompliant,
-        missingRequirements: missingTags, // Tell the UI exactly what's missing
-        // 2. PHI Detection (Sales Feature)
-        phiStatus: tags["ContainsPHI"] === "Yes" ? "High Risk (PHI)" : "Standard"
+        missingRequirements: missingTags,
+        phiStatus: hasPHI ? "High Risk (PHI)" : "Standard"
       });
     }
 
-    // 3. ENHANCED RESPONSE: Professional metrics for the Dashboard
+    // 3. CALCULATE PROFESSIONAL METRICS
+    const total = resources.length;
+    const nonCompliant = total - compliantCount;
+    const score = total > 0 ? Math.round((compliantCount / total) * 100) : 100;
+
     return NextResponse.json({
       timestamp: new Date().toISOString(),
-      totalResources: resources.length,
+      totalResources: total,
       compliantResources: compliantCount,
-      nonCompliantResources: resources.length - compliantCount,
-      complianceScore: resources.length > 0 
-        ? Math.round((compliantCount / resources.length) * 100) 
-        : 100,
+      nonCompliantResources: nonCompliant,
+      complianceScore: score,
       resources: resources,
     });
 
