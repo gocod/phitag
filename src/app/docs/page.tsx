@@ -117,28 +117,59 @@ export default function DocsPage() {
             </div>
           </section>
 
-          {/* CATEGORY GRID */}
-          <div className="grid md:grid-cols-3 gap-8">
-            {filteredCategories.map((cat, i) => (
-              <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                <div className="mb-6">{cat.icon}</div>
-                <h3 className="font-bold text-lg text-slate-900 mb-4">{cat.title}</h3>
-                <ul className="space-y-3">
-                  {cat.articles.map((art, j) => (
+         {/* 📚 CATEGORY GRID */}
+      <div className="grid md:grid-cols-3 gap-8">
+        {filteredCategories.length > 0 ? (
+          filteredCategories.map((cat, i) => (
+            <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm transition-all hover:border-blue-200">
+              <div className="mb-6">{cat.icon}</div>
+              <h3 className="font-bold text-lg text-slate-900 mb-4">{cat.title}</h3>
+              <ul className="space-y-3">
+                {cat.articles.map((art, j) => {
+                  // This identifies the specific link you want to fix
+                  const isAzureSetup = art === "Setting up Azure Connectivity";
+                  const slug = art.toLowerCase().replace(/ /g, '-');
+                  
+                  return (
                     <li key={j}>
-                      <Link href={`/docs/${art.toLowerCase().replace(/ /g, '-')}`} className="text-sm text-slate-500 hover:text-blue-600 flex items-center gap-2 group font-medium">
-                        <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                        {art}
-                      </Link>
+                      {isAzureSetup ? (
+                        // If it's the Azure link, use a button to switch tabs
+                        <button 
+                          onClick={() => {
+                            setActiveTab('getting-started');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 group text-left font-bold"
+                        >
+                          <ChevronRight size={14} className="text-blue-300 group-hover:translate-x-1 transition-transform" />
+                          {art}
+                          <Rocket size={12} className="ml-1 animate-pulse" />
+                        </button>
+                      ) : (
+                        // Standard link for everything else
+                        <Link 
+                          href={`/docs/${slug}`} 
+                          className="text-sm text-slate-500 hover:text-blue-600 flex items-center gap-2 group text-left font-medium"
+                        >
+                          <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                          {art}
+                        </Link>
+                      )}
                     </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+                  );
+                })}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-3 text-center py-20 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+            <p className="text-slate-400 font-medium italic">No articles found matching "{searchQuery}"</p>
           </div>
-        </>
-      ) : (
-        <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+        )}
+      </div>
+    </>
+  ) : (
+    <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
           
           {/* STEP 1: SERVICE PRINCIPAL - DETAILED GUIDE */}
 <div className="bg-slate-50 rounded-[3rem] p-10 border border-slate-200">

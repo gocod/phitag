@@ -64,7 +64,7 @@ export default function PricingPage() {
 
     // 🆕 FREE TIER LOGIC: Don't go to Stripe, just go to Dashboard
     if (priceId === "free_tier") {
-      window.location.href = session ? "/dashboard" : "/login?callbackUrl=/dashboard";
+      window.location.href = session ? "/" : "/login?callbackUrl=/";
       return;
     }
 
