@@ -1,8 +1,13 @@
-// middleware.ts
-export { default } from "next-auth/middleware";
+import { withAuth } from "next-auth/middleware";
+
+export default withAuth({
+  pages: {
+    signIn: "/login",
+  },
+});
 
 export const config = { 
-  // List all folders you want to protect here
+  // Keep your protected folders here
   matcher: [
     "/settings/:path*", 
     "/schema/:path*", 
