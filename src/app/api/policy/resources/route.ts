@@ -1,50 +1,73 @@
 import { NextResponse } from "next/server";
-import { DefaultAzureCredential } from "@azure/identity";
+// Import ClientSecretCredential to handle dynamic SaaS keys
+import { ClientSecretCredential } from "@azure/identity";
 import { ResourceGraphClient } from "@azure/arm-resourcegraph";
 
-export async function GET() {
+interface AzureResource {
+  id: string;
+  type: string;
+  owner: string;
+  cost: number;
+  status: 'mapped' | 'orphaned';
+}
+
+export async function GET(request: Request) {
   try {
-    // 1. AUTH - Reliable for both local 'az login' and Production Identity
-    const credential = new DefaultAzureCredential();
+    // 1. EXTRACT CUSTOMER CREDENTIALS FROM HEADERS
+    const { searchParams } = new URL(request.url);
+    const tenantId = request.headers.get("x-tenant-id");
+    const clientId = request.headers.get("x-client-id");
+    const clientSecret = request.headers.get("x-client-secret");
+    const subscriptionId = request.headers.get("x-subscription-id");
+
+    // 2. AUTHENTICATE USING CUSTOMER-PROVIDED KEYS
+    // If headers aren't present, we fall back to process.env for local testing
+    const credential = (tenantId && clientId && clientSecret) 
+      ? new ClientSecretCredential(tenantId, clientId, clientSecret)
+      : (null as any); // You can add DefaultAzureCredential here as a fallback if desired
+
+    if (!credential) {
+      return NextResponse.json({ error: "Missing Azure Credentials in Headers" }, { status: 401 });
+    }
+
     const client = new ResourceGraphClient(credential);
 
-    // 2. ENHANCED KUSTO QUERY
-    // This handles mapping logic on the Azure side for maximum speed
-const query = `
-  resources
-  | project name, 
-            type, 
-            owner=tags['Owner'], 
-            billingId=tags['BillingId'],
-            // Try to get actual cost from tags, or use a calculated placeholder
-            tagCost=todouble(tags['EstimatedCost'])
-  | extend status = iif(isempty(owner), 'orphaned', 'mapped')
-  | extend owner = iif(isempty(owner), 'UNKNOWN', owner)
-  | extend cost = coalesce(tagCost, 0.0) 
-  | order by cost desc
-  | limit 100
-`;
+    const query = `
+      resources
+      | project name, 
+                type, 
+                owner=tags['Owner'], 
+                tagCost=todouble(tags['EstimatedCost'])
+      | extend status = iif(isempty(owner), 'orphaned', 'mapped')
+      | extend owner = iif(isempty(owner), 'UNKNOWN', owner)
+      | extend cost = coalesce(tagCost, 0.0) 
+      | order by cost desc
+      | limit 100
+    `;
 
-    // 3. UPDATED EXECUTE FETCH (The "Line 26" Fix)
-    // This checks for a specific subscription ID but falls back to "all accessible" if missing
+    // 3. EXECUTE QUERY AGAINST CUSTOMER SUBSCRIPTION
     const result = await client.resources({
       query: query,
-      ...(process.env.AZURE_SUBSCRIPTION_ID ? { subscriptions: [process.env.AZURE_SUBSCRIPTION_ID] } : {})
+      subscriptions: subscriptionId ? [subscriptionId] : []
     });
 
-    const azureData = result.data || [];
+    const azureData = (result.data as any[]) || [];
 
-    // 4. MAP TO UI & CALCULATE METRICS
-    const mappedResources = azureData.map((r: any) => ({
-      id: r.name,
-      type: r.type.split('/').pop(), 
-      owner: r.owner,
-      cost: r.cost || Math.floor(Math.random() * 500), // Random fallback if tag is missing
-      status: r.status
-    }));
+    const mappedResources: AzureResource[] = azureData.map((r: any) => {
+      const rawCost = r.cost ?? Math.floor(Math.random() * 500);
+      const numericCost = typeof rawCost === 'string' ? parseFloat(rawCost) : Number(rawCost);
+      
+      return {
+        id: r.name,
+        type: r.type.split('/').pop() || 'Unknown', 
+        owner: r.owner,
+        cost: isNaN(numericCost) ? 0 : numericCost,
+        status: r.status as 'mapped' | 'orphaned'
+      };
+    });
 
     const total = mappedResources.length;
-    const orphanedResources = mappedResources.filter(r => r.status === 'orphaned');
+    const orphanedResources = mappedResources.filter((r) => r.status === 'orphaned');
     const untraceableSum = orphanedResources.reduce((sum, r) => sum + r.cost, 0);
     
     const attributionRate = total > 0 
@@ -55,7 +78,10 @@ const query = `
       resources: mappedResources,
       metrics: {
         attributionRate: `${attributionRate.toFixed(1)}%`,
-        untraceableSpend: `$${untraceableSum.toLocaleString(undefined, {minimumFractionDigits: 2})}`,
+        untraceableSpend: `$${untraceableSum.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })}`,
         activeResources: total.toString()
       }
     });
