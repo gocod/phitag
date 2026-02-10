@@ -155,8 +155,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleRotateSecret}
                 className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:text-blue-800 transition-all cursor-pointer"
-              >
-                <Hand size={12} className="rotate-90 fill-blue-600/10" />
+              >           
                 Rotate
               </button>
             </div>
@@ -214,8 +213,7 @@ export default function SettingsPage() {
         <button 
           onClick={() => window.location.reload()}
           className="group flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
-        >
-          <Hand size={14} className="opacity-100 -rotate-90" />
+        >       
           Discard Changes
         </button>
         
