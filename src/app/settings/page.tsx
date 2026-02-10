@@ -71,7 +71,7 @@ export default function SettingsPage() {
         </div>
         <Link 
           href="/onboarding" 
-          className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline mb-1"
+          className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline mb-1 cursor-pointer"
         >
           Re-run Setup Wizard <ChevronRight size={12} />
         </Link>
@@ -146,7 +146,7 @@ export default function SettingsPage() {
               <button 
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-24 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                className="absolute right-24 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
               >
                 {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
               <button 
                 type="button"
                 onClick={handleRotateSecret}
-                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:text-blue-800 transition-all group-hover/secret:scale-105"
+                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:text-blue-800 transition-all cursor-pointer"
               >
                 <Hand size={12} className="rotate-90 fill-blue-600/10" />
                 Rotate
@@ -177,7 +177,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3 pt-2">
              <button 
               onClick={() => handleFieldChange(setMode, 'audit')}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                 mode === 'audit' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
               }`}
              >
@@ -185,7 +185,7 @@ export default function SettingsPage() {
              </button>
              <button 
               onClick={() => handleFieldChange(setMode, 'enforce')}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                 mode === 'enforce' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
               }`}
              >
@@ -202,34 +202,36 @@ export default function SettingsPage() {
           <p className="text-xs text-slate-400 leading-relaxed font-medium">
             All audit evidence is encrypted with your Azure Key Vault. PHItag never sees your raw PHI data.
           </p>
-          <button className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] pt-4 hover:text-white transition-colors flex items-center gap-2">
+          <button className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] pt-4 hover:text-white transition-colors flex items-center gap-2 cursor-pointer">
             Manage Key Vault Link <ExternalLink size={12} />
           </button>
         </div>
       </section>
 
-      {/* ACTION BUTTONS WITH HAND AVATARS */}
+      {/* ACTION BUTTONS */}
       <div className="flex justify-end gap-6 border-t border-slate-100 pt-8 items-center">
+        {/* 1. DISCARD CHANGES BUTTON */}
         <button 
           onClick={() => window.location.reload()}
-          className="group flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all"
+          className="group flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
         >
-          <Hand size={14} className="opacity-0 group-hover:opacity-100 transition-opacity -rotate-90" />
+          <Hand size={14} className="opacity-100 -rotate-90" />
           Discard Changes
         </button>
         
+        {/* 2. SAVE SETTINGS BUTTON */}
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className={`group relative flex items-center gap-3 px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
+          className={`group relative flex items-center gap-3 px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer ${
             hasChanges 
               ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 scale-105' 
               : 'bg-slate-800 text-white'
           }`}
         >
-          {/* Hand Avatar for Save - Points when changes exist */}
-          <div className={`absolute -left-10 transition-all duration-300 ${hasChanges ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
-            <Hand size={20} className="text-blue-500 fill-blue-500/10 rotate-90" />
+          {/* Hand Avatar for Save - Always visible when changes exist to "grab" attention */}
+          <div className={`absolute -left-12 transition-all duration-300 ${hasChanges ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
+            <Hand size={22} className="text-blue-500 fill-blue-500/10 rotate-90" />
           </div>
 
           {isSaving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
