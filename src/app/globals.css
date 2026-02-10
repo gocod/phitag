@@ -22,3 +22,17 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
 }
+/* Force pointer cursor on all buttons and interactive elements */
+@layer base {
+  button, 
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    cursor: pointer;
+  }
+
+  /* Keep the cursor as an arrow when the button is disabled */
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
