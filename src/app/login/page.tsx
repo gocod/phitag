@@ -1,15 +1,31 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { signIn } from "next-auth/react";
-import { Github, ShieldCheck, ArrowRight, Lock } from 'lucide-react';
+import { Github, ShieldCheck, ArrowRight, Lock, Mail, Loader2, ExternalLink } from 'lucide-react';
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsEmailLoading(true);
+    // Triggers NextAuth Magic Link flow
+    await signIn("email", { email, callbackUrl: "/" });
+    setIsEmailLoading(false);
+  };
+
+  const handleRequestAccess = () => {
+    // Usually links to a Contact form or a Typeform
+    window.location.href = "mailto:access@phitag.app?subject=Access Request";
+  };
+
   return (
     <div className="min-h-[90vh] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-500">
       <div className="w-full max-w-md space-y-8 bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-2xl shadow-slate-200/50">
         
-        {/* BRANDING - Updated to use your Logo */}
+        {/* BRANDING */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-6">
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
@@ -26,10 +42,10 @@ export default function LoginPage() {
 
         {/* LOGIN ACTIONS */}
         <div className="space-y-4">
-          {/* Azure AD / Microsoft Button - Primary Action */}
+          {/* 1. ENTERPRISE SSO */}
           <button 
             onClick={() => signIn("azure-ad", { callbackUrl: "/" })}
-            className="w-full flex items-center justify-between px-6 py-4 bg-[#003366] text-white rounded-2xl hover:bg-[#002B5B] transition-all font-bold text-sm shadow-lg shadow-blue-900/20 group"
+            className="w-full flex items-center justify-between px-6 py-4 bg-[#003366] text-white rounded-2xl hover:bg-[#002B5B] transition-all font-bold text-sm shadow-lg shadow-blue-900/20 group cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="bg-white/10 p-1 rounded-md">
@@ -40,37 +56,67 @@ export default function LoginPage() {
             <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
           </button>
 
-          {/* GitHub Login Button - Secondary Action */}
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
+            <div className="relative flex justify-center text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] bg-white px-4">
+              OR
+            </div>
+          </div>
+
+          {/* 2. EMAIL MAGIC LINK */}
+          <form onSubmit={handleEmailLogin} className="space-y-3">
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="email" 
+                placeholder="work-email@company.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+            <button 
+              type="submit"
+              disabled={isEmailLoading}
+              className="w-full py-4 text-slate-600 font-bold text-xs uppercase tracking-widest border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all flex justify-center items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {isEmailLoading ? <Loader2 size={16} className="animate-spin" /> : "Send Magic Link"}
+            </button>
+            <p className="text-[9px] text-center text-slate-400 italic">No password required. We'll email you a secure login link.</p>
+          </form>
+
+          {/* 3. GITHUB */}
           <button 
             onClick={() => signIn("github", { callbackUrl: "/" })}
-            className="w-full flex items-center justify-between px-6 py-4 border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm group"
+            className="w-full flex items-center justify-center gap-2 py-3 text-slate-400 hover:text-slate-600 transition-all font-bold text-[10px] uppercase tracking-widest cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <Github size={20} />
-              <span>Continue with GitHub</span>
-            </div>
-            <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+            <Github size={14} /> Continue with GitHub
           </button>
         </div>
 
         {/* SECURITY FOOTER */}
-        <div className="space-y-4 pt-4">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-4 text-[10px] font-bold text-slate-300 uppercase tracking-widest">Audited Access</span>
-            </div>
-          </div>
-
+        <div className="space-y-4 pt-4 border-t border-slate-100">
           <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50/50 py-2 rounded-full">
             <ShieldCheck size={14} />
             <span className="text-[10px] font-bold uppercase tracking-tighter">HIPAA Compliant Environment</span>
           </div>
           
           <p className="text-center text-[9px] text-slate-400 leading-relaxed px-4">
-            Authorized personnel only. All access attempts and session activities are monitored under the PHItag Traceback protocol.
+            Authorized personnel only. New users will be automatically provisioned under "Auditor" roles.
           </p>
         </div>
+
+        {/* SIGN UP REDIRECT - Fixed with Hand Icon & Action */}
+        <p className="text-center text-xs text-slate-400 font-medium">
+          Don't have an account?{' '}
+          <button 
+            onClick={handleRequestAccess}
+            className="text-blue-600 font-black hover:underline cursor-pointer inline-flex items-center gap-1"
+          >
+            Request Access <ExternalLink size={12} />
+          </button>
+        </p>
 
       </div>
     </div>

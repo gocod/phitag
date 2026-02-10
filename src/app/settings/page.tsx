@@ -1,10 +1,10 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Settings, Key, ShieldAlert, 
   Save, RefreshCcw, ExternalLink,
-  ChevronRight, Database, Eye, EyeOff 
+  ChevronRight, Database, Eye, EyeOff, Hand 
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const secretInputRef = useRef<HTMLInputElement>(null);
 
   // Load all settings from browser storage on page load
   useEffect(() => {
@@ -35,10 +36,15 @@ export default function SettingsPage() {
     if (savedMode) setMode(savedMode as 'audit' | 'enforce');
   }, []);
 
-  // Track if user has modified anything
   const handleFieldChange = (setter: Function, value: string) => {
     setter(value);
     setHasChanges(true);
+  };
+
+  const handleRotateSecret = () => {
+    setClientSecret('');
+    setHasChanges(true);
+    secretInputRef.current?.focus();
   };
 
   const handleSave = async () => {
@@ -89,7 +95,6 @@ export default function SettingsPage() {
         </div>
         
         <div className="p-8 space-y-6">
-          {/* Subscription ID */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-2">
               <Database size={10} /> Active Subscription ID
@@ -104,7 +109,6 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-            {/* Tenant ID */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Directory (Tenant) ID</label>
               <input 
@@ -115,7 +119,6 @@ export default function SettingsPage() {
                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-600 outline-none focus:ring-2 focus:ring-blue-500/20" 
               />
             </div>
-            {/* Client ID */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Application (Client) ID</label>
               <input 
@@ -128,11 +131,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Client Secret with Eye Toggle */}
+          {/* Client Secret with Eye Toggle and Functional Rotate */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Client Secret</label>
-            <div className="relative">
+            <div className="relative group/secret">
               <input 
+                ref={secretInputRef}
                 type={showSecret ? "text" : "password"}
                 value={clientSecret}
                 onChange={(e) => handleFieldChange(setClientSecret, e.target.value)}
@@ -142,14 +146,17 @@ export default function SettingsPage() {
               <button 
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-12 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                className="absolute right-24 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
               >
                 {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
+              
               <button 
                 type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:text-blue-800 transition-colors"
+                onClick={handleRotateSecret}
+                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:text-blue-800 transition-all group-hover/secret:scale-105"
               >
+                <Hand size={12} className="rotate-90 fill-blue-600/10" />
                 Rotate
               </button>
             </div>
@@ -201,23 +208,30 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ACTION BUTTONS */}
-      <div className="flex justify-end gap-4 border-t border-slate-100 pt-8">
+      {/* ACTION BUTTONS WITH HAND AVATARS */}
+      <div className="flex justify-end gap-6 border-t border-slate-100 pt-8 items-center">
         <button 
           onClick={() => window.location.reload()}
-          className="px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+          className="group flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all"
         >
+          <Hand size={14} className="opacity-0 group-hover:opacity-100 transition-opacity -rotate-90" />
           Discard Changes
         </button>
+        
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className={`px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-50 ${
+          className={`group relative flex items-center gap-3 px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
             hasChanges 
               ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 scale-105' 
               : 'bg-slate-800 text-white'
           }`}
         >
+          {/* Hand Avatar for Save - Points when changes exist */}
+          <div className={`absolute -left-10 transition-all duration-300 ${hasChanges ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
+            <Hand size={20} className="text-blue-500 fill-blue-500/10 rotate-90" />
+          </div>
+
           {isSaving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
           {isSaving ? "Saving..." : "Save Settings"}
         </button>
