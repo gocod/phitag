@@ -34,11 +34,20 @@ export default function SchemaPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // States for adding new tags manually
   const [newKey, setNewKey] = useState("");
   const [newVal, setNewVal] = useState("");
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- AZURE CREDENTIALS HELPER ---
+  const getAzureCreds = () => {
+    return {
+      tenantId: localStorage.getItem("azure_tenant_id"),
+      clientId: localStorage.getItem("azure_client_id"),
+      clientSecret: localStorage.getItem("azure_client_secret"),
+      subscriptionId: localStorage.getItem("azure_subscription_id"),
+    };
+  };
 
   // --- STORAGE LOGIC ---
   useEffect(() => {
@@ -68,29 +77,50 @@ export default function SchemaPage() {
 
   const pushToAzure = async () => {
     setIsSyncing(true);
+    const creds = getAzureCreds();
+
+    if (!creds.clientSecret || !creds.subscriptionId) {
+        alert("❌ Azure Credentials missing! Please update System Settings.");
+        setIsSyncing(false);
+        return;
+    }
+
     try {
       const res = await fetch('/api/azure/push-policy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schema: policies })
+        body: JSON.stringify({ schema: policies, ...creds })
       });
+      const data = await res.json();
       if (res.ok) alert("✅ Azure Policy Updated successfully!");
-      else alert("❌ Failed to update Azure Policy.");
+      else alert(`❌ Error: ${data.error || "Failed to update Azure Policy"}`);
     } catch (e) { alert("Error connecting to API"); }
     finally { setIsSyncing(false); }
   };
 
   const handleScan = async () => {
     setIsScanning(true);
+    const creds = getAzureCreds();
+
+    if (!creds.clientSecret) {
+        alert("❌ Azure Credentials missing! Please update System Settings.");
+        setIsScanning(false);
+        return;
+    }
+
     try {
       const res = await fetch('/api/azure/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schema: policies })
+        body: JSON.stringify({ schema: policies, ...creds })
       });
       const data = await res.json();
-      alert(`Scan Complete! Compliance Score: ${data.complianceScore}%`);
-      setIsModalOpen(false);
+      if (res.ok) {
+        alert(`Scan Complete! Compliance Score: ${data.complianceScore}%`);
+        setIsModalOpen(false);
+      } else {
+        alert(`❌ Scan failed: ${data.error}`);
+      }
     } catch (e) { alert("Scan failed"); }
     finally { setIsScanning(false); }
   };
@@ -208,7 +238,6 @@ export default function SchemaPage() {
                   </td>
                 </tr>
               ))}
-              {/* ADD NEW TAG ROW */}
               <tr className="bg-slate-50/50 border-t-2 border-blue-100">
                 <td className="px-8 py-4"><input placeholder="New Key..." value={newKey} onChange={e => setNewKey(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" /></td>
                 <td className="px-8 py-4"><input placeholder="Allowed Values..." value={newVal} onChange={e => setNewVal(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" /></td>
