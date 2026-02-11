@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@azure/arm-policy": "^6.0.0",
+    "@azure/arm-policyinsights": "^6.0.0",
     "@azure/arm-resourcegraph": "^4.2.1",
     "@azure/arm-resources": "^7.0.0",
     "@azure/identity": "^4.13.0",
