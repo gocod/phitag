@@ -1,0 +1,18 @@
+[
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "BusinessUnit" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "ApplicationName" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "Environment" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "Owner" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "CostCenter" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "DataClassification" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "Criticality" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "ContainsPHI" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "HIPAAZone" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "EncryptionRequired" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "BackupPolicy" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "DRClass" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "SecurityZone" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "ComplianceScope" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "ProjectCode" } } },
+    { "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025", "parameters": { "tagName": { "value": "BudgetOwner" } } }
+]
