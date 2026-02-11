@@ -79,7 +79,7 @@ export default function SchemaPage() {
     setIsSyncing(true);
     const creds = getAzureCreds();
 
-    if (!creds.clientSecret || !creds.subscriptionId) {
+    if (!creds.clientSecret || !creds.subscriptionId || !creds.tenantId) {
         alert("❌ Azure Credentials missing! Please update System Settings.");
         setIsSyncing(false);
         return;
@@ -89,7 +89,13 @@ export default function SchemaPage() {
       const res = await fetch('/api/azure/push-policy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schema: policies, ...creds })
+        body: JSON.stringify({ 
+          schema: policies,
+          tenantId: creds.tenantId,
+          clientId: creds.clientId,
+          clientSecret: creds.clientSecret,
+          subscriptionId: creds.subscriptionId
+        })
       });
       const data = await res.json();
       if (res.ok) alert("✅ Azure Policy Updated successfully!");
@@ -102,7 +108,7 @@ export default function SchemaPage() {
     setIsScanning(true);
     const creds = getAzureCreds();
 
-    if (!creds.clientSecret) {
+    if (!creds.clientSecret || !creds.tenantId) {
         alert("❌ Azure Credentials missing! Please update System Settings.");
         setIsScanning(false);
         return;
@@ -112,7 +118,13 @@ export default function SchemaPage() {
       const res = await fetch('/api/azure/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schema: policies, ...creds })
+        body: JSON.stringify({ 
+          schema: policies,
+          tenantId: creds.tenantId,
+          clientId: creds.clientId,
+          clientSecret: creds.clientSecret,
+          subscriptionId: creds.subscriptionId
+        })
       });
       const data = await res.json();
       if (res.ok) {
@@ -168,7 +180,6 @@ export default function SchemaPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-6 space-y-8">
-      {/* HEADER SECTION */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
@@ -201,7 +212,6 @@ export default function SchemaPage() {
         </div>
       </header>
 
-      {/* TABLE SECTION */}
       <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
           <Activity size={20} className="text-blue-600" />
@@ -249,7 +259,6 @@ export default function SchemaPage() {
         </div>
       </section>
 
-      {/* CONNECT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[3rem] max-w-md w-full p-10 shadow-2xl text-center">
