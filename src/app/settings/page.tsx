@@ -23,7 +23,7 @@ export default function SettingsPage() {
 
   // Load all settings from browser storage on page load
   useEffect(() => {
-    const savedSub = localStorage.getItem('azure_sub_id');
+    const savedSub = localStorage.getItem('azure_subscription_id');
     const savedTenant = localStorage.getItem('azure_tenant_id');
     const savedClient = localStorage.getItem('azure_client_id');
     const savedSecret = localStorage.getItem('azure_client_secret');
@@ -51,7 +51,7 @@ export default function SettingsPage() {
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    localStorage.setItem('azure_sub_id', subscriptionId);
+    localStorage.setItem('azure_subscription_id', subscriptionId);
     localStorage.setItem('azure_tenant_id', tenantId);
     localStorage.setItem('azure_client_id', clientId);
     localStorage.setItem('azure_client_secret', clientSecret);
