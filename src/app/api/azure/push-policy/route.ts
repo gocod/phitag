@@ -21,9 +21,9 @@ export async function POST(req: Request) {
 
     // 4. Convert UI Schema into Azure Policy 'Parameters'
     const policyDefinitions = schema.map((tag: any) => ({
-      policyDefinitionId: "/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-80fd-b19f3128996d",
-      parameters: { tagName: { value: tag.key } }
-    }));
+  policyDefinitionId: `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/policyDefinitions/1e30110a-5ceb-460c-80fd-b19f3128996d`,
+  parameters: { tagName: { value: tag.key } }
+}));
 
     // 5. Update the Initiative
     await client.policySetDefinitions.createOrUpdate("phitag-manifesto-enforcement", {
