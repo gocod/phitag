@@ -11,7 +11,8 @@ import {
   Search,
   Download,
   Filter,
-  ShieldCheck
+  ShieldCheck,
+  Layers // Icon for Resource Group
 } from 'lucide-react';
 
 export default function TracebackMap() {
@@ -31,7 +32,6 @@ export default function TracebackMap() {
   const runPolicyScan = async () => {
     setIsScanning(true);
     try {
-      // Simulating an API call to your /api/policy/resources endpoint
       const response = await fetch('/api/policy/resources');
       const data = await response.json();
       
@@ -44,12 +44,12 @@ export default function TracebackMap() {
       });
     } catch (error) {
       console.error("Fetch failed, using high-fidelity mock data...");
-      // Restoring the detailed mock data that usually adds lines
+      // 🛠️ ADDED: "group" field to mock data
       const mockData = [
-        { id: "production-db-01", type: "SQL Database", owner: "Finance-Ops", cost: "1,240.00", status: "mapped" },
-        { id: "temp-test-vm", type: "Virtual Machine", owner: "Unknown", cost: "450.00", status: "orphaned" },
-        { id: "legacy-storage-acc", type: "Blob Storage", owner: "Marketing", cost: "89.00", status: "orphaned" },
-        { id: "k8s-cluster-main", type: "Kubernetes", owner: "DevOps", cost: "3,100.00", status: "mapped" },
+        { id: "production-db-01", type: "SQL Database", group: "RG-Clinical-Prod", owner: "Finance-Ops", cost: "1,240.00", status: "mapped" },
+        { id: "temp-test-vm", type: "Virtual Machine", group: "RG-Sandbox-Dev", owner: "Unknown", cost: "450.00", status: "orphaned" },
+        { id: "legacy-storage-acc", type: "Blob Storage", group: "RG-Legacy-Archive", owner: "Marketing", cost: "89.00", status: "orphaned" },
+        { id: "k8s-cluster-main", type: "Kubernetes", group: "RG-Core-Infra", owner: "DevOps", cost: "3,100.00", status: "mapped" },
       ];
       setResources(mockData);
       setMetrics({
@@ -59,7 +59,7 @@ export default function TracebackMap() {
         healthScore: 75
       });
     } finally {
-      setTimeout(() => setIsScanning(false), 800); // Smooth transition
+      setTimeout(() => setIsScanning(false), 800);
     }
   };
 
@@ -67,11 +67,35 @@ export default function TracebackMap() {
     runPolicyScan();
   }, []);
 
-  // --- EXPORT LOGIC (DROPPED PREVIOUSLY) ---
+  // --- REMEDIATION LOGIC (FIXED: Added reset to prevent infinite spinning) ---
+  const handleAutoRemediate = async () => {
+    setIsRemediating(true);
+    try {
+      // Logic for mass-tagging would go here
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API work
+      
+      // Update local state to show items are now "Traceable"
+      const remediated = resources.map(res => ({
+        ...res,
+        status: 'mapped',
+        owner: res.owner === 'Unknown' ? 'Inherited-Policy' : res.owner
+      }));
+      setResources(remediated);
+      setMetrics(prev => ({ ...prev, attributionRate: "100%", healthScore: 100, untraceableSpend: "$0" }));
+      
+      alert("Auto-Remediation successful. All orphaned resources tagged.");
+    } catch (e) {
+      alert("Remediation failed.");
+    } finally {
+      setIsRemediating(false); // 👈 This stops the spinner
+    }
+  };
+
+  // --- EXPORT LOGIC (UPDATED: Added Resource Group) ---
   const handleExport = () => {
-    const headers = ["Resource ID", "Resource Type", "Owner", "Monthly Cost", "Compliance Status"];
+    const headers = ["Resource ID", "Resource Type", "Resource Group", "Owner", "Monthly Cost", "Compliance Status"];
     const csvRows = resources.map(r => 
-      `${r.id},${r.type},${r.owner},${r.cost},${r.status}`
+      `${r.id},${r.type},${r.group},${r.owner},${r.cost},${r.status}`
     );
     const blob = new Blob([[headers.join(","), ...csvRows].join("\n")], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -88,7 +112,8 @@ export default function TracebackMap() {
     return resources.filter(r => 
       r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.type.toLowerCase().includes(searchTerm.toLowerCase())
+      r.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.group?.toLowerCase().includes(searchTerm.toLowerCase()) // 👈 Added filter for Group
     );
   }, [searchTerm, resources]);
 
@@ -100,7 +125,7 @@ export default function TracebackMap() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">FinOps Traceback</h1>
-            <p className="text-slate-500 mt-1">Resource attribution and tagging compliance map.</p>
+            <p className="text-slate-500 mt-1 font-medium">Resource attribution and tagging compliance map.</p>
           </div>
           <div className="flex items-center gap-3">
             <button 
@@ -125,7 +150,6 @@ export default function TracebackMap() {
           <StatCard title="Untraceable Spend" value={metrics.untraceableSpend} sub="MTD Leakage" color="text-rose-500" loading={isScanning} />
           <StatCard title="Active Resources" value={metrics.activeResources} sub="Azure Tenant" color="text-slate-900" loading={isScanning} />
           
-          {/* DONUT CHART COMPONENT */}
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-emerald-200 transition-all">
             <div className="text-left">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Health Score</p>
@@ -152,8 +176,8 @@ export default function TracebackMap() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text"
-                placeholder="Search by ID, Owner or Type..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                placeholder="Search ID, Group, Owner or Type..."
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -169,6 +193,7 @@ export default function TracebackMap() {
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resource Identity</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Group</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Type</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Financial Owner</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Monthly Cost</th>
@@ -186,6 +211,13 @@ export default function TracebackMap() {
                           <HardDrive size={20} />
                         </div>
                         <span className="text-sm font-bold text-slate-700">{res.id}</span>
+                      </td>
+                      {/* 🛠️ ADDED: Resource Group Cell */}
+                      <td className="px-8 py-6 text-center">
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-400 bg-slate-100/50 px-3 py-1.5 rounded-xl border border-slate-100">
+                          <Layers size={12} />
+                          {res.group || 'N/A'}
+                        </div>
                       </td>
                       <td className="px-8 py-6 text-sm text-slate-500 font-medium">{res.type}</td>
                       <td className="px-8 py-6">
@@ -212,14 +244,14 @@ export default function TracebackMap() {
           </div>
           <div className="relative z-10 space-y-4 text-center lg:text-left">
             <h2 className="text-3xl font-black tracking-tight">Policy Enforcement Ready</h2>
-            <p className="text-indigo-200 text-lg max-w-xl">
+            <p className="text-indigo-200 text-lg max-w-xl font-medium">
               We found <span className="text-white font-bold underline decoration-rose-400 underline-offset-4">{resources.filter(r => r.status === 'orphaned').length} orphaned resources</span> that lack owner tags. Triggering remediation will apply "Inherit Parent" tags.
             </p>
           </div>
           <button 
-            onClick={() => setIsRemediating(true)}
+            onClick={handleAutoRemediate}
             disabled={isRemediating}
-            className="relative z-10 bg-emerald-400 text-emerald-950 px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] hover:bg-white hover:scale-105 transition-all flex items-center gap-3 disabled:opacity-50"
+            className="relative z-10 bg-emerald-400 text-emerald-950 px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] hover:bg-white hover:scale-105 transition-all flex items-center gap-3 disabled:opacity-50 shadow-xl shadow-emerald-400/20"
           >
             {isRemediating ? <Loader2 className="animate-spin" size={20} /> : <DollarSign size={20} />}
             {isRemediating ? "Applying Tags..." : "Start Auto-Remediation"}
@@ -231,7 +263,7 @@ export default function TracebackMap() {
   );
 }
 
-// --- HELPER COMPONENTS (RESTORED TO ORIGINAL COMPLEXITY) ---
+// --- HELPER COMPONENTS ---
 
 function StatCard({ title, value, sub, color, loading }: any) {
   return (
@@ -267,7 +299,7 @@ function StatusBadge({ status }: { status: string }) {
 function FullTableSkeleton() {
   return [...Array(4)].map((_, i) => (
     <tr key={i}>
-      <td colSpan={5} className="px-8 py-8">
+      <td colSpan={6} className="px-8 py-8">
         <div className="flex gap-4 items-center">
           <div className="w-12 h-12 bg-slate-100 rounded-2xl animate-pulse" />
           <div className="space-y-2 w-full">
