@@ -9,20 +9,18 @@ import {
   Settings, 
   ShieldCheck, 
   Zap,
+  FileDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 /**
  * SUCCESS CONTENT COMPONENT
- * This handles all the UI and the 'useSearchParams' hook.
- * It is wrapped by the Suspense boundary in the main export.
  */
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   
   useEffect(() => {
-    // Trigger celebration confetti on mount
     confetti({
       particleCount: 150,
       spread: 70,
@@ -74,26 +72,32 @@ function SuccessContent() {
             </div>
           </div>
 
-          {/* STEP 2 */}
+          {/* STEP 2: FIXED - DIRECT PDF DOWNLOAD */}
           <div className="flex gap-6">
             <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">2</div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900">Define Your Schema</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">Visit the Tag Registry to set your mandatory HIPAA and Financial tags.</p>
-              <Link href="/policy" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 mt-2 hover:underline">
-                View Registry <ArrowRight size={14} />
-              </Link>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Align your environment with the 16-Key HIPAA Standard Manifesto.</p>
+              <a 
+                href="/healthcare-tagging-manifesto.pdf" 
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline"
+              >
+                Download Manifesto PDF <FileDown size={14} />
+              </a>
             </div>
           </div>
 
-          {/* STEP 3 */}
+          {/* STEP 3: FIXED - POINTING TO AUDIT VAULT */}
           <div className="flex gap-6">
             <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">3</div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900">Download BAA</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">Your signed Business Associate Agreement is ready for download in the Audit Vault.</p>
-              <Link href="/audit" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 mt-2 hover:underline">
-                Go to Vault <ShieldCheck size={14} />
+              <h3 className="font-bold text-slate-900">Access Compliance Vault</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Your HIPAA evidence and BAA documentation are now live in the Audit Vault.</p>
+              <Link href="/audit" className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
+                Go to Audit Vault <ShieldCheck size={14} />
               </Link>
             </div>
           </div>
@@ -112,7 +116,6 @@ function SuccessContent() {
 
 /**
  * MAIN PAGE EXPORT
- * Wraps the content in Suspense to prevent Next.js build errors.
  */
 export default function SuccessPage() {
   return (
