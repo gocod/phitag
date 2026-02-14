@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   ShieldCheck, FileText, Download, Loader2, 
   CheckCircle2, Search, Filter, Lock, Unlock, Zap, Wrench 
-} from 'lucide-center';
+} from 'lucide-react';
 import { useSession } from "next-auth/react";
 
 export default function AuditVault() {
