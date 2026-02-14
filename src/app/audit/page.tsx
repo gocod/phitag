@@ -62,11 +62,24 @@ export default function AuditVault() {
         })
       });
       const data = await res.json();
-      if (res.ok) {
-        setRealResources(data.details || []);
-        setStats({ total: data.totalResources, compliant: data.compliantResources, score: data.complianceScore });
-        setReportReady(true);
-      }
+if (res.ok) {
+  const resources = data.details || [];
+  setRealResources(resources);
+  
+  const total = data.totalResources || resources.length;
+  const compliant = data.compliantResources;
+  
+  // Calculate score locally: (Compliant / Total) * 100
+  // This ensures that if 5/5 are green, you get 100% even if the API sends 0
+  const localScore = total > 0 ? Math.round((compliant / total) * 100) : 0;
+
+  setStats({ 
+    total: total, 
+    compliant: compliant, 
+    score: localScore 
+  });
+  setReportReady(true);
+}
     } catch (e) { alert("Scan failed"); } finally { setIsGenerating(false); }
   };
 
@@ -74,16 +87,51 @@ export default function AuditVault() {
   const handleAutoFix = async (resourceId: string, missingTags: string[]) => {
     setIsFixing(resourceId);
     const creds = getAzureCreds();
+    
+    // 🔗 Pull the specific values from your overwrite file in the Policy Engine
+    const savedPolicy = localStorage.getItem("phiTag_active_policy");
+    const activeSchema = savedPolicy ? JSON.parse(savedPolicy) : [];
+
+    // Map the missing keys to their intended values from your test file
+    const tagUpdates: Record<string, string> = {};
+    
+    missingTags.forEach(tagKey => {
+      const policyMatch = activeSchema.find((p: any) => p.key === tagKey);
+      
+      if (policyMatch && policyMatch.values) {
+        // If your file says "DEPT-001, DEPT-002", we take "DEPT-001"
+        const firstValue = policyMatch.values.split(',')[0].trim();
+        tagUpdates[tagKey] = firstValue;
+      } else {
+        // Fallback if the key isn't in your overwrite file for some reason
+        tagUpdates[tagKey] = "TRUE"; 
+      }
+    });
+
     try {
       const res = await fetch('/api/azure/remediate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resourceId, missingTags, ...creds })
+        // Notice we send 'tagUpdates' (Key:Value) now, not just 'missingTags' (Key)
+        body: JSON.stringify({ 
+          resourceId, 
+          tagUpdates, 
+          ...creds 
+        })
       });
+
       if (res.ok) {
-        await startAudit(); // Re-scan to show the green "Compliant" status
+        // Now when it re-scans, Azure has "DEPT-001", so it will finally turn GREEN!
+        await startAudit();
+      } else {
+        const err = await res.json();
+        alert("Fix failed: " + err.error);
       }
-    } catch (e) { alert("Fix failed"); } finally { setIsFixing(null); }
+    } catch (e) { 
+      alert("Error connecting to Remediation API"); 
+    } finally { 
+      setIsFixing(null); 
+    }
   };
 
   const filteredResources = realResources.filter(res => 
