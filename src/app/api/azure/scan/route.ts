@@ -1,9 +1,9 @@
-// C:\Users\Jenny\phitag\src\app\api\azure\scan\route.ts
+// src/app/api/azure/scan/route.ts
 import { NextResponse } from "next/server";
 import { ClientSecretCredential } from "@azure/identity";
 import { ResourceManagementClient } from "@azure/arm-resources";
 
-// 🏥 FULL 16-TAG MANIFESTO (Default)
+// 🏥 FULL 16-TAG MANIFESTO (Default fallback)
 const MANIFESTO_DEFAULTS = [
   "BusinessUnit", "ApplicationName", "Environment", "Owner", 
   "CostCenter", "DataClassification", "Criticality", "ContainsPHI", 
@@ -14,9 +14,30 @@ const MANIFESTO_DEFAULTS = [
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { subscriptionId: dynamicId, schema: frontendSchema } = body;
+    
+    // 1. DESTRUCTURE CREDENTIALS FROM UI
+    const { 
+      subscriptionId: dynamicSubId, 
+      schema: frontendSchema,
+      tenantId: dynamicTenantId,
+      clientId: dynamicClientId,
+      clientSecret: dynamicClientSecret
+    } = body;
 
-    // 1. DETERMINE THE POLICY (Restored Frontend Schema support)
+    // 2. VALIDATION
+    const tenantId = dynamicTenantId || process.env.AZURE_TENANT_ID;
+    const clientId = dynamicClientId || process.env.AZURE_CLIENT_ID;
+    const clientSecret = dynamicClientSecret || process.env.AZURE_CLIENT_SECRET;
+    const activeSubscriptionId = dynamicSubId || process.env.AZURE_SUBSCRIPTION_ID;
+
+    if (!tenantId || !clientId || !clientSecret || !activeSubscriptionId) {
+      return NextResponse.json(
+        { error: "Missing Azure credentials. Please check System Settings." }, 
+        { status: 400 }
+      );
+    }
+
+    // 3. DETERMINE THE POLICY (From Frontend or Defaults)
     let mandatoryKeys: string[] = [];
     if (frontendSchema && Array.isArray(frontendSchema) && frontendSchema.length > 0) {
       mandatoryKeys = frontendSchema
@@ -26,12 +47,7 @@ export async function POST(req: Request) {
       mandatoryKeys = MANIFESTO_DEFAULTS;
     }
 
-    // 2. AUTHENTICATION
-    const tenantId = process.env.AZURE_TENANT_ID!;
-    const clientId = process.env.AZURE_CLIENT_ID!;
-    const clientSecret = process.env.AZURE_CLIENT_SECRET!;
-    const activeSubscriptionId = dynamicId || process.env.AZURE_SUBSCRIPTION_ID!;
-
+    // 4. AUTHENTICATION & CLIENT INITIALIZATION
     const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
     const client = new ResourceManagementClient(credential, activeSubscriptionId);
 
@@ -39,7 +55,7 @@ export async function POST(req: Request) {
     let compliantCount = 0;
     let totalPHIResources = 0;
 
-    // --- REUSABLE COMPLIANCE ENGINE (Restored your specific PHI logic) ---
+    // --- REUSABLE COMPLIANCE ENGINE ---
     const analyzeItem = (item: any, typeLabel: string) => {
       const tags = item.tags || {};
       let missingTags = mandatoryKeys.filter(tag => !tags[tag]);
@@ -47,7 +63,7 @@ export async function POST(req: Request) {
       const hasPHI = tags["ContainsPHI"]?.toLowerCase() === "yes";
       if (hasPHI) {
         totalPHIResources++;
-        // HIPAA Specific rules restored
+        // HIPAA Specific rules
         if (!tags["HIPAAZone"]) missingTags.push("HIPAAZone");
         if (!tags["EncryptionRequired"]) missingTags.push("EncryptionRequired");
       }
@@ -66,18 +82,20 @@ export async function POST(req: Request) {
       };
     };
 
-    // 3. SCAN BOTH SCOPES
-    // Scan Resource Groups (Where your PowerShell policy is likely applied)
+    // 5. SCAN BOTH SCOPES
+    // Scan Resource Groups
     for await (const rg of client.resourceGroups.list()) {
       fullInventory.push(analyzeItem(rg, "Resource Group"));
     }
 
-    // Scan Individual Resources (To catch inheritance failures)
+    // Scan Individual Resources
     for await (const res of client.resources.list()) {
       fullInventory.push(analyzeItem(res, res.type || "Resource"));
     }
 
     const total = fullInventory.length;
+
+    // 6. RETURN RESULTS
     return NextResponse.json({
       totalResources: total,
       phiCount: totalPHIResources,
@@ -88,6 +106,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
+    console.error("Scan API Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
