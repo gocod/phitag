@@ -62,13 +62,14 @@ export default function AuditVault() {
         })
       });
       const data = await res.json();
-if (res.ok) {
+      if (res.ok) {
         const resources = data.details || [];
         setRealResources(resources);
         
         const total = data.totalResources || resources.length;
         const compliant = data.compliantResources;
         const localScore = total > 0 ? Math.round((compliant / total) * 100) : 0;
+        const phiCount = data.phiCount || 0;
 
         const updatedStats = { 
           total: total, 
@@ -78,8 +79,11 @@ if (res.ok) {
 
         setStats(updatedStats);
 
-        // 💾 This is the key! Saves the data for the Dashboard cards
-        localStorage.setItem("phiTag_last_stats", JSON.stringify(updatedStats));
+        // 💾 This is the key! Saves the data for the Dashboard cards (PHI Count included)
+        localStorage.setItem("phiTag_last_stats", JSON.stringify({
+          ...updatedStats,
+          phiCount: phiCount
+        }));
         
         setReportReady(true);
       }
@@ -302,6 +306,7 @@ if (res.ok) {
                       {tag.values.map(v => <span key={v} className="text-slate-300 bg-white/5 px-1.5 py-0.5 rounded">"{v}"</span>)}
                     </div>
                   ) : <div className="text-slate-500">Pattern: <span className="text-blue-200 italic font-mono">{tag.pattern}</span></div>}
+                  {tag.dependency && <div className="mt-1 text-[9px] text-amber-400/80 font-bold uppercase italic">Condition: {tag.dependency}</div>}
                 </div>
               </div>
             ))}

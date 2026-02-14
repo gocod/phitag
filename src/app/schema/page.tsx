@@ -98,7 +98,11 @@ export default function SchemaPage() {
         })
       });
       const data = await res.json();
-      if (res.ok) alert("✅ Azure Policy Updated successfully!");
+      if (res.ok) {
+        // ⚡️ Important: Clear old stats because the rules just changed!
+        localStorage.removeItem("phiTag_last_stats");
+        alert("✅ Azure Policy Updated! Now run a scan to update your score.");
+      }
       else alert(`❌ Error: ${data.error || "Failed to update Azure Policy"}`);
     } catch (e) { alert("Error connecting to API"); }
     finally { setIsSyncing(false); }
@@ -126,15 +130,30 @@ export default function SchemaPage() {
           subscriptionId: creds.subscriptionId
         })
       });
+      
       const data = await res.json();
+      
       if (res.ok) {
-        alert(`Scan Complete! Compliance Score: ${data.complianceScore}%`);
+        // 📊 1. Calculate Results for the Dashboard
+        const total = data.totalResources || 0;
+        const compliant = data.compliantResources || 0;
+        const score = total > 0 ? Math.round((compliant / total) * 100) : 0;
+        const phiCount = data.phiCount || 0;
+
+        // 💾 2. SYNC TO GLOBAL STORAGE (The Landing Page reads this key)
+        const syncStats = { total, compliant, score, phiCount };
+        localStorage.setItem("phiTag_last_stats", JSON.stringify(syncStats));
+
+        alert(`✅ Scan Complete!\nCompliance Score: ${score}%\nResources Scanned: ${total}`);
         setIsModalOpen(false);
       } else {
         alert(`❌ Scan failed: ${data.error}`);
       }
-    } catch (e) { alert("Scan failed"); }
-    finally { setIsScanning(false); }
+    } catch (e) { 
+      alert("Scan failed: Network Error"); 
+    } finally { 
+      setIsScanning(false); 
+    }
   };
 
   // --- EXPORTS & UPLOADS ---

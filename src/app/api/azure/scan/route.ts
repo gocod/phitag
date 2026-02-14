@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { ClientSecretCredential } from "@azure/identity";
 import { ResourceManagementClient } from "@azure/arm-resources";
 
+// Keep this as a safety fallback
 const MANIFESTO_DEFAULTS = [
   "BusinessUnit", "ApplicationName", "Environment", "Owner", 
   "CostCenter", "DataClassification", "Criticality", "ContainsPHI", 
   "HIPAAZone", "EncryptionRequired", "BackupPolicy", "DRClass", 
   "SecurityZone", "ComplianceScope", "ProjectCode", "BudgetOwner"
 ];
+
+// Set the runtime to 'nodejs' for Azure Identity compatibility on Vercel
+export const runtime = 'nodejs';
+// Increase timeout for large Azure subscriptions (Vercel Pro allows more, Hobby is 10s)
+export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +26,7 @@ export async function POST(req: Request) {
       clientSecret: dynamicClientSecret
     } = body;
 
+    // Prioritize Dynamic (Frontend) -> then Environment (Vercel Settings)
     const tenantId = dynamicTenantId || process.env.AZURE_TENANT_ID;
     const clientId = dynamicClientId || process.env.AZURE_CLIENT_ID;
     const clientSecret = dynamicClientSecret || process.env.AZURE_CLIENT_SECRET;
@@ -36,24 +43,24 @@ export async function POST(req: Request) {
     let compliantCount = 0;
     let totalPHIResources = 0;
 
-    // --- 🛡️ IMPROVED VALUE-AWARE COMPLIANCE ENGINE ---
     const analyzeItem = (item: any, typeLabel: string) => {
       const tags = item.tags || {};
       const missingTags: string[] = [];
 
-      // 1. Check Mandatory Tags from Frontend Schema (Value Matching)
+      // 1. Value-Aware Compliance Check
       if (frontendSchema && Array.isArray(frontendSchema)) {
         frontendSchema.forEach((rule: any) => {
-          if (rule.requirement === "Mandatory") {
+          // Only enforce if the rule is Mandatory or if it's a conditional HIPAA requirement
+          if (rule.requirement === "Mandatory" || rule.requirement?.includes("Required if")) {
             const actualValue = tags[rule.key];
             
-            // Handle multiple allowed values (e.g., "DEPT-001, DEPT-002")
+            // Handle multiple allowed values (e.g., "Prod, NonProd")
             const allowedValues = rule.values 
-              ? rule.values.split(',').map((v: string) => v.trim()) 
+              ? rule.values.split(',').map((v: string) => v.trim().toLowerCase()) 
               : [];
 
-            // 🚩 THE LOGIC FIX: Check if tag is missing OR value is invalid/placeholder
-            const isValueValid = actualValue && (allowedValues.length === 0 || allowedValues.includes(actualValue));
+            // VALID if: Tag exists AND (no specific list provided OR value is in that list)
+            const isValueValid = actualValue && (allowedValues.length === 0 || allowedValues.includes(actualValue.toLowerCase()));
 
             if (!isValueValid) {
               missingTags.push(rule.key);
@@ -61,16 +68,17 @@ export async function POST(req: Request) {
           }
         });
       } else {
-        // Fallback to existence check for 16 defaults if no schema provided
         MANIFESTO_DEFAULTS.forEach(key => {
           if (!tags[key]) missingTags.push(key);
         });
       }
 
-      // 2. HIPAA Specific Logic
+      // 2. HIPAA Specific Logic (Extra layer of safety)
       const hasPHI = tags["ContainsPHI"]?.toLowerCase() === "yes";
       if (hasPHI) {
         totalPHIResources++;
+        // These keys should already be caught by the loop above, 
+        // but we keep this for legacy manifesto support.
         if (!tags["HIPAAZone"]) missingTags.push("HIPAAZone");
         if (!tags["EncryptionRequired"]) missingTags.push("EncryptionRequired");
       }
@@ -89,7 +97,8 @@ export async function POST(req: Request) {
       };
     };
 
-    // 5. SCAN RESOURCES
+    // 🚀 Performance Tip: Use Promise.all if your subscription is huge, 
+    // but for 2026 stability, sequential for-await is safer against rate limits.
     for await (const rg of client.resourceGroups.list()) {
       fullInventory.push(analyzeItem(rg, "Resource Group"));
     }
@@ -109,6 +118,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Scan API Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: `Azure Connection Failed: ${error.message}` }, { status: 500 });
   }
 }
