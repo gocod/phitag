@@ -45,7 +45,6 @@ export default function Nav() {
   const suiteModules = {
     enforcement: [
       { name: "Policy Engine", href: "/schema", icon: <Zap size={16} />, desc: "Proactive drift enforcement" },
-      { name: "Tag Registry", href: "/registry", icon: <ClipboardList size={16} />, desc: "Healthcare schema standards" },
     ],
     visibility: [
       { name: "Traceback Map", href: "/infrastructure", icon: <HardDrive size={16} />, desc: "Resource-to-owner mapping" },
