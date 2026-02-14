@@ -63,23 +63,26 @@ export default function AuditVault() {
       });
       const data = await res.json();
 if (res.ok) {
-  const resources = data.details || [];
-  setRealResources(resources);
-  
-  const total = data.totalResources || resources.length;
-  const compliant = data.compliantResources;
-  
-  // Calculate score locally: (Compliant / Total) * 100
-  // This ensures that if 5/5 are green, you get 100% even if the API sends 0
-  const localScore = total > 0 ? Math.round((compliant / total) * 100) : 0;
+        const resources = data.details || [];
+        setRealResources(resources);
+        
+        const total = data.totalResources || resources.length;
+        const compliant = data.compliantResources;
+        const localScore = total > 0 ? Math.round((compliant / total) * 100) : 0;
 
-  setStats({ 
-    total: total, 
-    compliant: compliant, 
-    score: localScore 
-  });
-  setReportReady(true);
-}
+        const updatedStats = { 
+          total: total, 
+          compliant: compliant, 
+          score: localScore 
+        };
+
+        setStats(updatedStats);
+
+        // 💾 This is the key! Saves the data for the Dashboard cards
+        localStorage.setItem("phiTag_last_stats", JSON.stringify(updatedStats));
+        
+        setReportReady(true);
+      }
     } catch (e) { alert("Scan failed"); } finally { setIsGenerating(false); }
   };
 
