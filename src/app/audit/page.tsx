@@ -47,11 +47,19 @@ export default function AuditVault() {
   const startAudit = async () => {
     setIsGenerating(true);
     const creds = getAzureCreds();
+    
+    // 🔗 BRIDGE: Get the 2-line overwrite from the Policy Engine
+    const savedPolicy = localStorage.getItem("phiTag_active_policy");
+    const activeSchema = savedPolicy ? JSON.parse(savedPolicy) : null;
+
     try {
       const res = await fetch('/api/azure/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...creds })
+        body: JSON.stringify({ 
+          ...creds, 
+          schema: activeSchema // 👈 This tells the API to only check for your overwritten tags
+        })
       });
       const data = await res.json();
       if (res.ok) {
