@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
         await userRef.set(userData, { merge: true });
 
         // Trigger Admin Notification
-        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXTAUTH_URL || "https://www.phitag.app";
         await fetch(`${baseUrl}/api/admin/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
