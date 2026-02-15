@@ -1,79 +1,100 @@
 import { stripe } from "@/lib/stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebaseAdmin"; // Using the Admin SDK you just fixed
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
   const body = await req.text();
   const headersList = await headers();
-  
-  // 1. Robust Signature Retrieval
-  // Using lowercase 'stripe-signature' is more reliable across different hosting providers
   const signature = headersList.get("stripe-signature");
 
   if (!signature) {
-    console.error("❌ Webhook Error: No stripe-signature found in headers");
     return new NextResponse("No signature found", { status: 400 });
   }
 
   let event;
 
   try {
-    // 2. Construct the Event
-    // Ensure process.env.STRIPE_WEBHOOK_SECRET is the one from the Stripe Dashboard (whsec_...)
     event = stripe.webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (error: any) {
-    console.error(`❌ Webhook Signature Verification Failed: ${error.message}`);
+    console.error(`❌ Webhook Signature Failed: ${error.message}`);
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
   const session = event.data.object as any;
 
-  // 3. Handle the Events
+  // --- HELPER: NOTIFY ADMIN OF REVENUE ---
+  const notifyAdminOfUpgrade = async (email: string, plan: string, type: string) => {
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    await fetch(`${baseUrl}/api/admin/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventType: type === "upgraded" ? "💰 NEW SUBSCRIPTION" : "📉 SUBSCRIPTION CANCELED",
+        userEmail: email,
+        planName: plan
+      }),
+    });
+  };
+
+  // --- HANDLE EVENTS ---
   switch (event.type) {
-    
     case "checkout.session.completed":
-      const userEmail = session.customer_details?.email;
-      const planType = session.metadata?.planType || "PHI_GOVERNANCE_SUITE"; 
+    case "invoice.payment_succeeded": {
+      const userEmail = session.customer_details?.email || session.customer_email;
+      // Map your internal plan keys from Stripe Metadata
+      const planType = session.metadata?.planType || "Governance Pro"; 
       const stripeCustomerId = session.customer;
 
-      console.log(`✅ SUCCESS: ${userEmail} (ID: ${stripeCustomerId}) purchased ${planType}`);
+      if (userEmail) {
+        // 1. UPDATE FIREBASE IN REAL-TIME
+        await db.collection("users").doc(userEmail).set({
+          stripeCustomerId: stripeCustomerId,
+          plan: planType,
+          isPro: true,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
 
-      /**
-       * TODO: DATABASE SYNC
-       * Since you are testing live, this is where you would call your DB:
-       * await db.user.update({
-       * where: { email: userEmail },
-       * data: { 
-       * isPro: true,
-       * stripeCustomerId: stripeCustomerId,
-       * plan: planType 
-       * }
-       * });
-       */
+        // 2. TRIGGER RESEND NOTIFICATION
+        await notifyAdminOfUpgrade(userEmail, planType, "upgraded");
+        console.log(`✅ DATABASE UPDATED: ${userEmail} is now ${planType}`);
+      }
       break;
+    }
 
-    case "customer.subscription.deleted":
-      const deletedSession = event.data.object as any;
-      console.log(`❌ SUBSCRIPTION ENDED: Customer ${deletedSession.customer}`);
-      
-      /**
-       * TODO: LOCK ACCESS
-       * await db.user.update({
-       * where: { stripeCustomerId: deletedSession.customer },
-       * data: { isPro: false }
-       * });
-       */
+    case "customer.subscription.deleted": {
+      const stripeCustomerId = session.customer;
+
+      // Find user by Stripe ID and downgrade them
+      const userQuery = await db.collection("users")
+        .where("stripeCustomerId", "==", stripeCustomerId)
+        .limit(1)
+        .get();
+
+      if (!userQuery.empty) {
+        const userDoc = userQuery.docs[0];
+        const email = userDoc.id;
+
+        await userDoc.ref.update({
+          plan: "Free Trial",
+          isPro: false,
+          canceledAt: FieldValue.serverTimestamp()
+        });
+
+        await notifyAdminOfUpgrade(email, "Reverted to Free Trial", "canceled");
+        console.log(`❌ ACCESS REVOKED: ${email}`);
+      }
       break;
+    }
 
     default:
       console.log(`ℹ️ Unhandled event type: ${event.type}`);
   }
 
-  // 4. Return 200 to Stripe
-  // Stripe will keep retrying (and potentially disable your webhook) if you don't return 200
   return new NextResponse("Webhook Received", { status: 200 });
 }
