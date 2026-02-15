@@ -3,11 +3,13 @@ import { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import EmailProvider from "next-auth/providers/email";
-
-// 🛡️ IMPORT THE ADMIN DB
+import { FirestoreAdapter } from "@next-auth/firebase-adapter"; // 👈 Required for Email Provider
 import { db } from "@/lib/firebaseAdmin"; 
 
 export const authOptions: NextAuthOptions = {
+  // 1. LINK THE ADAPTER
+  adapter: FirestoreAdapter(db),
+
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_ID!,
@@ -23,13 +25,18 @@ export const authOptions: NextAuthOptions = {
       from: process.env.EMAIL_FROM,
     }),
   ],
-  
+
+  // 2. SESSION STRATEGY
+  session: {
+    strategy: "jwt", // Fast, cookie-based sessions
+  },
+
+  // 3. FINOPS LOGIC (Your custom writes)
   events: {
     async signIn({ user }) {
       if (!user.email) return;
 
       try {
-        // ADMIN SDK SYNTAX: .collection().doc()
         const userRef = db.collection("users").doc(user.email);
         const userSnap = await userRef.get();
         
@@ -39,7 +46,7 @@ export const authOptions: NextAuthOptions = {
         const userData: any = {
           email: user.email,
           name: user.name || "N/A",
-          lastLogin: new Date(), // Admin SDK accepts standard Dates or FieldValue
+          lastLogin: new Date(),
         };
 
         if (isNewUser) {
@@ -47,7 +54,6 @@ export const authOptions: NextAuthOptions = {
           userData.createdAt = new Date();
         }
 
-        // ADMIN SDK SYNTAX: .set(data, { merge: true })
         await userRef.set(userData, { merge: true });
 
         // Trigger Admin Notification
@@ -70,6 +76,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);

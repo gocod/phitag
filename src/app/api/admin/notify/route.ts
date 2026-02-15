@@ -4,14 +4,15 @@ import { getUserPlan } from '@/lib/firebase-admin';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
-  const { eventType, userEmail } = await req.json();
-
-  // 1. Get real-time plan from Firebase
-  const livePlan = await getUserPlan(userEmail);
-
   try {
+    const { eventType, userEmail } = await req.json();
+
+    // 1. Get real-time plan from Firebase
+    // If getUserPlan fails, we fallback to "Unknown" so the email still sends
+    const livePlan = (await getUserPlan(userEmail)) || "Free Trial (Default)";
+
     const data = await resend.emails.send({
-      from: 'PHItag System <system@phitag.app>',
+      from: 'PHItag System <system@phitag.app>', // Ensure this domain is verified in Resend!
       to: 'emilyli1965@gmail.com',
       subject: `🔔 PHItag Alert: ${eventType}`,
       html: `
@@ -28,8 +29,9 @@ export async function POST(req: Request) {
       `,
     });
 
-    return Response.json(data);
-  } catch (error) {
-    return Response.json({ error });
+    return Response.json({ success: true, data });
+  } catch (error: any) {
+    console.error("❌ Notification Route Error:", error);
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }
