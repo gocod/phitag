@@ -1,18 +1,25 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { getUserPlan } from '@/lib/firebase-admin';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
     const { eventType, userEmail } = await req.json();
 
     // 1. Get real-time plan from Firebase
-    // If getUserPlan fails, we fallback to "Unknown" so the email still sends
     const livePlan = (await getUserPlan(userEmail)) || "Free Trial (Default)";
 
-    const data = await resend.emails.send({
-      from: 'PHItag System <system@phitag.app>', // Ensure this domain is verified in Resend!
+    // 2. Configure Nodemailer with Gmail
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'emilyli1965@gmail.com', // Your Gmail
+        pass: process.env.GMAIL_APP_PASSWORD, // ⚠️ You must generate this in Google Account settings
+      },
+    });
+
+    // 3. Send the Email
+    const info = await transporter.sendMail({
+      from: '"PHItag System" <emilyli1965@gmail.com>',
       to: 'emilyli1965@gmail.com',
       subject: `🔔 PHItag Alert: ${eventType}`,
       html: `
@@ -29,7 +36,7 @@ export async function POST(req: Request) {
       `,
     });
 
-    return Response.json({ success: true, data });
+    return Response.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error("❌ Notification Route Error:", error);
     return Response.json({ success: false, error: error.message }, { status: 500 });

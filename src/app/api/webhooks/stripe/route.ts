@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   // 1. Get the RAW body text for signature verification
+  // Next.js 15: We await the text stream directly
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error(`❌ Signature Verification Failed: ${error.message}`);
+    // This return is why you get a 400 error if the secret/body is mismatched
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
