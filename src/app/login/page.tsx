@@ -8,16 +8,41 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [isEmailLoading, setIsEmailLoading] = useState(false);
 
+  // --- ADMIN NOTIFICATION HELPER ---
+  const notifyAdmin = async (userEmail: string, type: string) => {
+    try {
+      await fetch('/api/admin/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType: `Login Attempt (${type})`,
+          userEmail: userEmail || "SSO User",
+          planName: "Checking Profile..." 
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to notify admin", e);
+    }
+  };
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsEmailLoading(true);
-    // Triggers NextAuth Magic Link flow
+    
+    // Notify before triggering the magic link
+    await notifyAdmin(email, "Magic Link");
+    
     await signIn("email", { email, callbackUrl: "/" });
     setIsEmailLoading(false);
   };
 
+  const handleSSOLogin = async (provider: string) => {
+    // For SSO, we don't have the email yet, but we can log the attempt
+    await notifyAdmin("SSO Intent", provider);
+    signIn(provider, { callbackUrl: "/" });
+  };
+
   const handleRequestAccess = () => {
-    // Usually links to a Contact form or a Typeform
     window.location.href = "mailto:access@phitag.app?subject=Access Request";
   };
 
@@ -44,7 +69,7 @@ export default function LoginPage() {
         <div className="space-y-4">
           {/* 1. ENTERPRISE SSO */}
           <button 
-            onClick={() => signIn("azure-ad", { callbackUrl: "/" })}
+            onClick={() => handleSSOLogin("azure-ad")}
             className="w-full flex items-center justify-between px-6 py-4 bg-[#003366] text-white rounded-2xl hover:bg-[#002B5B] transition-all font-bold text-sm shadow-lg shadow-blue-900/20 group cursor-pointer"
           >
             <div className="flex items-center gap-3">
@@ -83,12 +108,11 @@ export default function LoginPage() {
             >
               {isEmailLoading ? <Loader2 size={16} className="animate-spin" /> : "Send Magic Link"}
             </button>
-            <p className="text-[9px] text-center text-slate-400 italic">No password required. We'll email you a secure login link.</p>
           </form>
 
           {/* 3. GITHUB */}
           <button 
-            onClick={() => signIn("github", { callbackUrl: "/" })}
+            onClick={() => handleSSOLogin("github")}
             className="w-full flex items-center justify-center gap-2 py-3 text-slate-400 hover:text-slate-600 transition-all font-bold text-[10px] uppercase tracking-widest cursor-pointer"
           >
             <Github size={14} /> Continue with GitHub
@@ -107,7 +131,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* SIGN UP REDIRECT - Fixed with Hand Icon & Action */}
+        {/* SIGN UP REDIRECT */}
         <p className="text-center text-xs text-slate-400 font-medium">
           Don't have an account?{' '}
           <button 

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings2, Zap, Activity, Upload, 
   Trash2, RotateCcw, Loader2, Cloud, 
-  FileCode, FileText, Plus, Globe 
+  FileCode, FileText, Plus, Globe, FileDown 
 } from 'lucide-react';
 
 // 🏥 FULL 16-KEY MANIFESTO FROM PDF
@@ -99,7 +99,6 @@ export default function SchemaPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        // ⚡️ Important: Clear old stats because the rules just changed!
         localStorage.removeItem("phiTag_last_stats");
         alert("✅ Azure Policy Updated! Now run a scan to update your score.");
       }
@@ -134,13 +133,11 @@ export default function SchemaPage() {
       const data = await res.json();
       
       if (res.ok) {
-        // 📊 1. Calculate Results for the Dashboard
         const total = data.totalResources || 0;
         const compliant = data.compliantResources || 0;
         const score = total > 0 ? Math.round((compliant / total) * 100) : 0;
         const phiCount = data.phiCount || 0;
 
-        // 💾 2. SYNC TO GLOBAL STORAGE (The Landing Page reads this key)
         const syncStats = { total, compliant, score, phiCount };
         localStorage.setItem("phiTag_last_stats", JSON.stringify(syncStats));
 
@@ -176,6 +173,15 @@ export default function SchemaPage() {
     link.click();
   };
 
+  const downloadBYOPTemplate = () => {
+    const template = [
+      { key: "CostCenter", values: "FIN-100, ENG-200, MKT-300", requirement: "Mandatory" },
+      { key: "Environment", values: "Prod, Stage, Dev, Sandbox", requirement: "Mandatory" },
+      { key: "OwnerEmail", values: "user@company.com", requirement: "Mandatory" }
+    ];
+    downloadFile(JSON.stringify(template, null, 2), "phiTag_Custom_Schema_Template.json", "application/json");
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -186,7 +192,7 @@ export default function SchemaPage() {
         const json = JSON.parse(event.target?.result as string);
         setPolicies(json.map((item: any) => ({
           key: item.key || "Unknown",
-          values: item.values || "N/A", 
+          values: Array.isArray(item.values) ? item.values.join(", ") : (item.values || "N/A"), 
           requirement: item.requirement || "Mandatory"
         })));
       } catch (err) { alert("Invalid JSON"); }
@@ -199,38 +205,63 @@ export default function SchemaPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-6 space-y-8">
+      {/* 🚀 REORGANIZED HEADER */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
             <Settings2 size={36} className="text-blue-600" />
             Policy Engine
           </h1>
-          <p className="text-slate-500 font-medium mt-1">Healthcare Manifesto: {policies.length} Active Rules</p>
+          <p className="text-slate-500 font-medium mt-1">Active Rules: {policies.length}</p>
         </div>
         
-        <div className="flex flex-wrap gap-3">
-          <button onClick={() => setPolicies(MANIFESTO_DEFAULTS)} className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50">
-            <RotateCcw size={16} /> Reset
-          </button>
-          <label className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-emerald-200 text-emerald-700 bg-emerald-50 rounded-xl text-sm font-bold hover:bg-emerald-100">
-            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />} Overwrite
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} accept=".json" />
-          </label>
-          <button onClick={pushToAzure} disabled={isSyncing} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-lg disabled:opacity-50">
-            {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />} Sync to Cloud
-          </button>
-          <button onClick={exportAzurePolicy} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-sm font-bold hover:bg-blue-100">
-            <FileText size={16} /> Azure JSON
-          </button>
-          <button onClick={exportTerraform} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black shadow-lg">
-            <FileCode size={16} /> Terraform
-          </button>
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg">
-            <Zap size={16} /> Connect Azure
-          </button>
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* GROUP 1: SCHEMA MANAGEMENT (BYOP) */}
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1 items-center">
+            <button 
+              onClick={() => setPolicies(MANIFESTO_DEFAULTS)} 
+              className="flex items-center gap-2 px-3 py-2 text-slate-500 rounded-xl text-xs font-bold hover:bg-white hover:text-red-600 transition-all"
+              title="Reset to HIPAA Defaults"
+            >
+              <RotateCcw size={14} />
+            </button>
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+            <button 
+              onClick={downloadBYOPTemplate} 
+              className="flex items-center gap-1.5 px-3 py-2 text-blue-600 rounded-xl text-xs font-bold hover:bg-white transition-all"
+            >
+              <FileDown size={14} /> Template
+            </button>
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-white text-emerald-700 shadow-sm rounded-xl text-xs font-bold hover:bg-emerald-50 transition-all border border-emerald-100">
+              {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} 
+              Overwrite (BYOP)
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} accept=".json" />
+            </label>
+          </div>
+
+          {/* GROUP 2: CLOUD SYNC & ACTIONS */}
+          <div className="flex gap-2">
+            <button onClick={pushToAzure} disabled={isSyncing} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg disabled:opacity-50 transition-all">
+              {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />} Sync to Cloud
+            </button>
+            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg transition-all">
+              <Zap size={14} /> Scan Azure
+            </button>
+          </div>
+
+          {/* GROUP 3: EXPORTS */}
+          <div className="flex gap-1 border-l border-slate-200 pl-4">
+            <button onClick={exportAzurePolicy} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Azure JSON">
+              <FileText size={20} />
+            </button>
+            <button onClick={exportTerraform} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all" title="Terraform">
+              <FileCode size={20} />
+            </button>
+          </div>
         </div>
       </header>
 
+      {/* 📊 ACTIVE MANIFESTO TABLE */}
       <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
           <Activity size={20} className="text-blue-600" />
@@ -261,36 +292,48 @@ export default function SchemaPage() {
                     </span>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <button onClick={() => setPolicies(policies.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-500 p-2">
+                    <button onClick={() => setPolicies(policies.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </td>
                 </tr>
               ))}
+              {/* ➕ ADD NEW ROW */}
               <tr className="bg-slate-50/50 border-t-2 border-blue-100">
                 <td className="px-8 py-4"><input placeholder="New Key..." value={newKey} onChange={e => setNewKey(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" /></td>
                 <td className="px-8 py-4"><input placeholder="Allowed Values..." value={newVal} onChange={e => setNewVal(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" /></td>
                 <td className="px-8 py-4"><span className="text-[10px] font-black px-3 py-1 rounded-full border bg-red-50 text-red-600 border-red-100">MANDATORY</span></td>
-                <td className="px-8 py-4 text-right"><button onClick={addNewTag} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"><Plus size={18} /></button></td>
+                <td className="px-8 py-4 text-right"><button onClick={addNewTag} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 shadow-md transition-all"><Plus size={18} /></button></td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
+      {/* ☁️ AZURE CONNECTION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3rem] max-w-md w-full p-10 shadow-2xl text-center">
+          <div className="bg-white rounded-[3rem] max-w-md w-full p-10 shadow-2xl text-center animate-in zoom-in duration-300">
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6 mx-auto">
               {isScanning ? <Loader2 size={32} className="text-blue-600 animate-spin" /> : <Cloud className="text-blue-600" size={32} />}
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-2">{isScanning ? "Scanning Azure..." : "Connect Azure"}</h3>
-            <p className="text-slate-500 text-sm mb-8">Synchronize and scan subscription for tagging drift.</p>
+            <p className="text-slate-500 text-sm mb-8">Synchronize and scan subscription for tagging drift based on your active manifesto.</p>
             <div className="space-y-3">
-               <button onClick={handleScan} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex justify-center items-center gap-2">
-                 {isScanning && <Loader2 size={20} className="animate-spin" />} Begin Compliance Scan
+               <button 
+                 onClick={handleScan} 
+                 disabled={isScanning}
+                 className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex justify-center items-center gap-2 hover:bg-black transition-all disabled:opacity-50"
+               >
+                 {isScanning && <Loader2 size={20} className="animate-spin" />} 
+                 {isScanning ? "Scan in Progress..." : "Begin Compliance Scan"}
                </button>
-               <button onClick={() => setIsModalOpen(false)} className="w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold">Cancel</button>
+               <button 
+                 onClick={() => setIsModalOpen(false)} 
+                 className="w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+               >
+                 Cancel
+               </button>
             </div>
           </div>
         </div>
