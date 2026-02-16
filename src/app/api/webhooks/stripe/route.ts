@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   // 1. Get the RAW body text for signature verification
-  // Next.js 15: We await the text stream directly
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -23,10 +22,17 @@ export async function POST(req: Request) {
 
   try {
     // 2. Verify the event with your 'whsec_...' secret
+    // Explicitly use the secret from process.env
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      throw new Error("STRIPE_WEBHOOK_SECRET is not defined in environment variables.");
+    }
+
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     );
   } catch (error: any) {
     console.error(`❌ Signature Verification Failed: ${error.message}`);
@@ -39,7 +45,6 @@ export async function POST(req: Request) {
   // --- HELPER: TRIGGER NOTIFICATION ---
   const notifyAdminOfUpgrade = async (email: string, plan: string, type: string) => {
     try {
-      // Use absolute URL for server-side fetch to avoid relative path errors
       const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
       await fetch(`${baseUrl}/api/admin/notify`, {
         method: 'POST',
@@ -74,7 +79,7 @@ export async function POST(req: Request) {
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        // Fire the Resend notification
+        // Fire the notification (Nodemailer/Gmail)
         await notifyAdminOfUpgrade(userEmail, planType, "upgraded");
         console.log(`✅ SUCCESS: ${userEmail} upgraded to ${planType}`);
       }
@@ -110,6 +115,5 @@ export async function POST(req: Request) {
       console.log(`ℹ️ Unhandled event type: ${event.type}`);
   }
 
-  // 3. Return 200 to Stripe to stop retries
   return new NextResponse("Webhook Received", { status: 200 });
 }

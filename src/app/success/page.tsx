@@ -3,6 +3,7 @@
 import React, { useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from "next-auth/react"; // Added for session sync
 import { 
   CheckCircle2, 
   ArrowRight, 
@@ -19,15 +20,26 @@ import confetti from 'canvas-confetti';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const { update } = useSession(); 
   
   useEffect(() => {
+    // 1. Fire Celebration
     confetti({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
       colors: ['#2563eb', '#10b981']
     });
-  }, []);
+
+    // 2. ⚡ THE LOGOUT FIX:
+    // This refreshes the local session so the user stays logged in
+    // and the "Sign In" button doesn't replace the "Sign Out" button.
+    const timer = setTimeout(() => {
+      update();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [update]);
 
   return (
     <div className="max-w-3xl mx-auto py-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
