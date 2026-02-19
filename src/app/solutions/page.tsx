@@ -1,4 +1,5 @@
 "use client";
+import Link from 'next/link'; // Add this import
 import React from 'react';
 import { 
   BarChart3, 
@@ -92,9 +93,13 @@ export default function SolutionsPage() {
             <p className="text-slate-500 leading-relaxed text-sm">
               Generic tools scan resources *after* they are created. PHItag defines the schema *before* deployment, injecting compliance directly into the IaC pipeline.
             </p>
-            <button className="flex items-center gap-2 text-blue-600 font-bold text-sm hover:gap-4 transition-all">
-              Explore the technical specs <ArrowRight size={18} />
-            </button>
+            <Link 
+  href="/schema" 
+  className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm hover:gap-4 transition-all group"
+>
+  Explore the technical specs 
+  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+</Link>
           </div>
           
           <div className="flex-1 grid grid-cols-2 gap-4">

@@ -98,28 +98,32 @@ export default function SecurityPage() {
       </div>
 
       {/* 🕵️ RESPONSIBLE DISCLOSURE */}
-      <section className="bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden">
-        <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
-          <div className="space-y-4">
-            <h2 className="text-3xl font-black italic tracking-tight">Vulnerability Disclosure</h2>
-            <p className="text-slate-400 text-sm leading-relaxed font-medium">
-              We appreciate the global security community. If you've discovered a vulnerability, please reach out to us. We offer safe harbor for researchers acting in good faith.
-            </p>
-            <div className="pt-4">
-              <a href="mailto:security@phitag.com" className="inline-flex items-center gap-2 bg-blue-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all">
-                <Mail size={16} /> Contact Security Team
-              </a>
-            </div>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-sm">
-             <Zap className="text-blue-400 mb-4" size={32} />
-             <h4 className="text-sm font-black text-white uppercase mb-2 tracking-widest">Our Triage Promise</h4>
-             <p className="text-xs text-slate-400 leading-relaxed font-medium">
-               Reports are triaged within 24 hours. We provide transparent updates throughout the remediation process and credit researchers for their work.
-             </p>
-          </div>
-        </div>
-      </section>
+<section className="bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden">
+  <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
+    <div className="space-y-4">
+      <h2 className="text-3xl font-black italic tracking-tight">Vulnerability Disclosure</h2>
+      <p className="text-slate-400 text-sm leading-relaxed font-medium">
+        We appreciate the global security community. If you've discovered a vulnerability, please reach out to us. We offer safe harbor for researchers acting in good faith.
+      </p>
+      <div className="pt-4">
+        {/* FIXED: Changed .com to .app and added the verified security alias */}
+        <a 
+          href="mailto:security@phitag.app" 
+          className="inline-flex items-center gap-3 bg-blue-600 px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 hover:scale-105 transition-all shadow-xl shadow-blue-500/20"
+        >
+          <Mail size={18} /> Contact Security Team
+        </a>
+      </div>
+    </div>
+    <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-sm">
+        <Zap className="text-blue-400 mb-4" size={32} />
+        <h4 className="text-sm font-black text-white uppercase mb-2 tracking-widest">Our Triage Promise</h4>
+        <p className="text-xs text-slate-400 leading-relaxed font-medium">
+          Reports are triaged within 24 hours. We provide transparent updates throughout the remediation process and credit researchers for their work via our `security@phitag.app` channel.
+        </p>
+    </div>
+  </div>
+</section>
     </div>
   );
 }
