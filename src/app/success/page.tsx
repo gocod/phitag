@@ -23,20 +23,27 @@ function SuccessContent() {
       colors: ['#2563eb', '#10b981']
     });
 
-    // 2. ⚡ THE CLEAN LOGOUT FIX:
-    // We update the session to pull the new 'Pro/Elite' status from Firestore.
-    // We wait 2 seconds to ensure the Stripe Webhook has finished its work.
-    const timer = setTimeout(() => {
-      update();
-    }, 2000);
+    // 2. ⚡ THE SESSION RECOVERY FIX:
+    // If the user is unauthenticated, the cookies might just be laggy.
+    // We wait 2 seconds then force a hard reload to pick up the session.
+    if (status === "unauthenticated") {
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
 
-    return () => clearTimeout(timer);
-  }, [update]);
+    // 3. ⚡ PERMISSION SYNC:
+    // If authenticated, update the session to show the new Pro/Elite status.
+    if (status === "authenticated") {
+      const timer = setTimeout(() => {
+        update();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [status, update]);
 
-  // PROTECTIVE RENDER:
-  // If the session is still "loading" or re-validating, we keep showing 
-  // the pulse screen. This prevents the "Sign Out" button from 
-  // accidentally flickering into a "Sign In" button.
+  // PROTECTIVE RENDER: Prevents login/logout button flickering
   if (status === "loading") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">

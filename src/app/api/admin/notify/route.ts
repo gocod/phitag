@@ -16,19 +16,21 @@ export async function POST(req: Request) {
 
     const lowerEvent = eventType.toLowerCase();
     
-    // 🎯 STRICT LOGIC GATES
-    // Only "checkout.session.completed" or explicit "sale" triggers Sale logic
+    // 🎯 REFINED LOGIC GATES
     const isActualSale = lowerEvent.includes('completed') || lowerEvent.includes('sale');
-    // Login and Register events
-    const isAuthEvent = lowerEvent.includes('login') || lowerEvent.includes('register') || lowerEvent.includes('new user');
+    
+    // Broadened to catch GitHub callbacks and initial sign-ins
+    const isWelcomeEvent = lowerEvent.includes('login') || 
+                           lowerEvent.includes('register') || 
+                           lowerEvent.includes('new user') || 
+                           lowerEvent.includes('callback');
     
     const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
 
-    // --- 1. ADMIN NOTIFICATION (To emilyli1965@gmail.com) ---
-    // This ensures the Subject Line matches the actual reality
+    // --- 1. ADMIN NOTIFICATION ---
     let subject = `🔔 System: ${eventType}`;
     if (isActualSale) subject = `💰 NEW SALE: ${livePlan}`;
-    if (isAuthEvent && !lowerEvent.includes('register')) subject = `🔐 Auth: ${userEmail}`;
+    if (isWelcomeEvent && !lowerEvent.includes('register')) subject = `🔐 Auth: ${userEmail}`;
 
     await transporter.sendMail({
       from: fromIdentity,
@@ -43,9 +45,11 @@ export async function POST(req: Request) {
         </div>`
     });
 
-    // --- 2. USER WELCOME MESSAGE (With Pricing Table) ---
-    // Only sent for New Users or Registrations to avoid spamming existing customers on every login
-    if ((lowerEvent.includes('register') || lowerEvent.includes('new user')) && userEmail !== 'emilyli1965@gmail.com') {
+    // --- 2. USER WELCOME MESSAGE ---
+    // We log this so you can verify in Vercel Logs if the condition was met
+    if (isWelcomeEvent && userEmail !== 'emilyli1965@gmail.com') {
+      console.log(`📧 NOTIFY: Triggering welcome email for ${userEmail} on event ${eventType}`);
+      
       await transporter.sendMail({
         from: fromIdentity,
         to: userEmail,
@@ -56,7 +60,7 @@ export async function POST(req: Request) {
               <h1 style="margin: 0; font-size: 20px;">Welcome to PHItag</h1>
             </div>
             <div style="padding: 30px; color: #334155;">
-              <p>Thanks for joining. You are currently on the <strong>Free Trial</strong>.</p>
+              <p>Thanks for joining. Your environment is now connected. You are currently on the <strong>Free Trial</strong>.</p>
               <p>Upgrade to a professional tier for full HIPAA automation:</p>
               <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; border: 1px solid #e2e8f0;">
                 <tr style="background-color: #f8fafc;">
@@ -85,6 +89,7 @@ export async function POST(req: Request) {
 
     return Response.json({ success: true });
   } catch (error: any) {
+    console.error("❌ NOTIFY ERROR:", error);
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }
