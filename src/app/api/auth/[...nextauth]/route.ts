@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
   },
 
   // 3. FINOPS LOGIC (Your custom writes)
-  events: {
+ events: {
     async signIn({ user }) {
       if (!user.email) return;
 
@@ -56,13 +56,16 @@ export const authOptions: NextAuthOptions = {
 
         await userRef.set(userData, { merge: true });
 
-        // Trigger Admin Notification
-        const baseUrl = process.env.NEXTAUTH_URL || "https://www.phitag.app";
+        // 🎯 THE FIX: Use the primary domain (phitag.app) to ensure the fetch doesn't fail on a redirect
+        const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
+
+        console.log(`📡 Sending trigger to: ${baseUrl}/api/admin/notify for ${user.email}`);
+
         await fetch(`${baseUrl}/api/admin/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            eventType: eventTitle,
+            eventType: eventTitle, // This triggers "Welcome" logic because it contains "Sign-In" or "New User"
             userEmail: user.email,
           }),
         });
