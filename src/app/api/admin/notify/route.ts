@@ -25,7 +25,9 @@ export async function POST(req: Request) {
                            lowerEvent.includes('new user') || 
                            lowerEvent.includes('callback');
     
-    const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
+    // 🔐 SECURITY FIX: The 'from' email MUST match your Gmail account to bypass Yahoo/Gmail spam filters
+    const fromIdentity = '"PHItag Governance" <emilyli1965@gmail.com>';
+    const businessReplyTo = 'onboarding@phitag.app';
 
     // --- 1. ADMIN NOTIFICATION ---
     let subject = `🔔 System: ${eventType}`;
@@ -46,12 +48,12 @@ export async function POST(req: Request) {
     });
 
     // --- 2. USER WELCOME MESSAGE ---
-    // We log this so you can verify in Vercel Logs if the condition was met
     if (isWelcomeEvent && userEmail !== 'emilyli1965@gmail.com') {
-      console.log(`📧 NOTIFY: Triggering welcome email for ${userEmail} on event ${eventType}`);
+      console.log(`📧 NOTIFY: Sending welcome email to ${userEmail} via Gmail SMTP`);
       
       await transporter.sendMail({
         from: fromIdentity,
+        replyTo: businessReplyTo, // Customer replies go here
         to: userEmail,
         subject: "Welcome to PHItag - Secure Your Cloud Governance",
         html: `

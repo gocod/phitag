@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from "next-auth/react";
@@ -12,10 +12,15 @@ import confetti from 'canvas-confetti';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  const { status, update } = useSession(); 
+  const { data: session, status, update } = useSession(); 
   
+  // ⚡ Prevent the loop: This ref tracks if we've already run the success logic
+  const hasCelebrated = useRef(false);
+
   useEffect(() => {
-    // 1. Celebration
+    if (hasCelebrated.current) return;
+
+    // 1. Celebration (Only runs once)
     confetti({
       particleCount: 150,
       spread: 70,
@@ -23,9 +28,8 @@ function SuccessContent() {
       colors: ['#2563eb', '#10b981']
     });
 
-    // 2. ⚡ THE SESSION RECOVERY FIX:
-    // If the user is unauthenticated, the cookies might just be laggy.
-    // We wait 2 seconds then force a hard reload to pick up the session.
+    // 2. ⚡ SESSION RECOVERY:
+    // If the user is unauthenticated, wait 2 seconds then force a hard reload.
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
         window.location.reload();
@@ -34,16 +38,23 @@ function SuccessContent() {
     }
 
     // 3. ⚡ PERMISSION SYNC:
-    // If authenticated, update the session to show the new Pro/Elite status.
+    // Only call update if they are authenticated AND we don't see the upgraded plan yet.
     if (status === "authenticated") {
-      const timer = setTimeout(() => {
-        update();
-      }, 1500);
-      return () => clearTimeout(timer);
+      const isUpgraded = session?.user?.plan === "Pro" || session?.user?.plan === "Elite";
+      
+      if (!isUpgraded) {
+        const timer = setTimeout(() => {
+          update();
+          hasCelebrated.current = true; // Mark as done to stop the loop
+        }, 1500);
+        return () => clearTimeout(timer);
+      } else {
+        hasCelebrated.current = true; // They are already upgraded, stop logic
+      }
     }
-  }, [status, update]);
+  }, [status, update, session]);
 
-  // PROTECTIVE RENDER: Prevents login/logout button flickering
+  // PROTECTIVE RENDER: Prevents flickering
   if (status === "loading") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
