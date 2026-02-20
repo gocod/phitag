@@ -14,10 +14,11 @@ function SuccessContent() {
   const sessionId = searchParams.get('session_id');
   const { data: session, status, update } = useSession(); 
   
-  // ⚡ Prevent the loop: This ref tracks if we've already run the success logic
+  // ⚡ tracks if we've already run the success logic to prevent loops
   const hasCelebrated = useRef(false);
 
   useEffect(() => {
+    // If logic already ran, don't trigger again (Fixes the flashing fireworks)
     if (hasCelebrated.current) return;
 
     // 1. Celebration (Only runs once)
@@ -29,7 +30,6 @@ function SuccessContent() {
     });
 
     // 2. ⚡ SESSION RECOVERY:
-    // If the user is unauthenticated, wait 2 seconds then force a hard reload.
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
         window.location.reload();
@@ -38,18 +38,19 @@ function SuccessContent() {
     }
 
     // 3. ⚡ PERMISSION SYNC:
-    // Only call update if they are authenticated AND we don't see the upgraded plan yet.
     if (status === "authenticated") {
-      const isUpgraded = session?.user?.plan === "Pro" || session?.user?.plan === "Elite";
+      // Use 'as any' to bypass the TypeScript 'plan' property error
+      const user = session?.user as any;
+      const isUpgraded = user?.plan === "Pro" || user?.plan === "Elite";
       
       if (!isUpgraded) {
         const timer = setTimeout(() => {
           update();
-          hasCelebrated.current = true; // Mark as done to stop the loop
+          hasCelebrated.current = true; 
         }, 1500);
         return () => clearTimeout(timer);
       } else {
-        hasCelebrated.current = true; // They are already upgraded, stop logic
+        hasCelebrated.current = true; 
       }
     }
   }, [status, update, session]);
