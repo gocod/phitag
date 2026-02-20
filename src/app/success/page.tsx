@@ -39,7 +39,7 @@ function SuccessContent() {
 
     // 3. ⚡ PERMISSION SYNC:
     if (status === "authenticated") {
-      // Use 'as any' to bypass the TypeScript 'plan' property error
+      // FIX: Use 'as any' to bypass the TypeScript 'plan' property error
       const user = session?.user as any;
       const isUpgraded = user?.plan === "Pro" || user?.plan === "Elite";
       
