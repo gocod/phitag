@@ -4,8 +4,6 @@ import { getUserPlan } from '@/lib/firebase-admin';
 export async function POST(req: Request) {
   try {
     const { eventType, userEmail, newPlan, price } = await req.json();
-    
-    // Fallback: Use the newPlan if provided (upgrade), otherwise look up current plan (login)
     const livePlan = newPlan || (await getUserPlan(userEmail)) || "Free Trial";
 
     const transporter = nodemailer.createTransport({
@@ -19,103 +17,101 @@ export async function POST(req: Request) {
 
     const lowerEvent = eventType.toLowerCase();
     const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
-
-    // 🎯 LOGIC GATE: Identify if this is a revenue event
     const isSale = lowerEvent.includes('sale') || lowerEvent.includes('upgrade') || lowerEvent.includes('completed');
 
-    // --- 1. ADMIN NOTIFICATION (Revenue vs System Alert) ---
-    // This confirms sales to you (Emily) immediately.
+    // --- 1. ADMIN NOTIFICATION ---
     await transporter.sendMail({
       from: fromIdentity,
       to: 'emilyli1965@gmail.com',
       subject: isSale ? `💰 NEW SALE: ${livePlan} ($${price || '?'})` : `🔔 PHItag: ${eventType}`,
       html: isSale ? `
-        <div style="font-family: sans-serif; padding: 20px; border: 2px solid #2563eb; border-radius: 10px;">
-          <h2 style="color: #2563eb; margin-top: 0;">Revenue Alert! 🚀</h2>
-          <p><strong>User:</strong> ${userEmail}</p>
-          <p><strong>Plan Purchased:</strong> ${livePlan}</p>
+        <div style="font-family: sans-serif; padding: 20px; border: 2px solid #2563eb; border-radius: 12px;">
+          <h2 style="color: #2563eb; margin: 0;">Revenue Alert! 🚀</h2>
+          <p><strong>Customer:</strong> ${userEmail}</p>
+          <p><strong>Tier:</strong> ${livePlan}</p>
           <p><strong>Amount:</strong> $${price || 'N/A'}</p>
-          <p style="font-size: 1.1em;">Check Stripe/Firebase for details.</p>
-        </div>
-      ` : `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee;">
-          <p><strong>System Event:</strong> ${eventType}</p>
-          <p><strong>User:</strong> ${userEmail}</p>
-          <p><strong>Plan:</strong> ${livePlan}</p>
-        </div>`
+        </div>` : `<p>Event: ${eventType}<br>User: ${userEmail}</p>`
     });
 
     // --- 2. USER MESSAGES ---
-    
+    let emailSubject = 'Welcome to PHItag! 🛡️';
+    let emailBody = '';
+
     if (isSale) {
-      // 🛡️ UPGRADE CONFIRMATION (The missing piece)
-      await transporter.sendMail({
-        from: fromIdentity,
-        to: userEmail,
-        subject: `Your ${livePlan} is now Active! 🛡️`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #333; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-            <h2 style="text-align: center; color: #003366;">Welcome to Pro Access!</h2>
-            <p>Hi there,</p>
-            <p>Your upgrade to the <strong>${livePlan}</strong> was successful. Your account has been updated with full premium features.</p>
-            
-            <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #003366;">
-              <p style="margin: 0; font-weight: bold; color: #003366;">Premium Features Unlocked:</p>
-              <ul style="padding-left: 20px;">
-                <li><strong>Full Azure Automation:</strong> Auto-tagging and Remediation</li>
-                <li><strong>Unlimited Audit Vault:</strong> Complete history for HIPAA compliance</li>
-                <li><strong>Priority Support:</strong> Direct access to the governance team</li>
-              </ul>
-            </div>
-
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://phitag.app/dashboard" style="background-color: #003366; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Enter the Pro Dashboard</a>
-            </div>
-            
-            <p style="font-size: 12px; color: #888; text-align: center; margin-top: 30px;">
-              If you have any questions about your new features, just reply to this email.
-            </p>
-          </div>`
-      });
+      // 🏆 ENRICHED UPGRADE CONFIRMATION
+      emailSubject = `Your ${livePlan} Access is Active! 🛡️`;
+      emailBody = `
+        <h2 style="text-align: center; color: #003366; margin-bottom: 20px;">Upgrade Successful!</h2>
+        <p>Your environment is now secured with <strong>${livePlan}</strong> features. Your automated governance is now active.</p>
+        <div style="background-color: #f0f7ff; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #003366;">
+          <h4 style="margin: 0 0 10px 0; color: #003366;">New Capabilities Unlocked:</h4>
+          <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+            <li><strong>Auto-Remediation:</strong> Fixing compliance gaps in real-time.</li>
+            <li><strong>Audit Vault:</strong> Full historical logs for HIPAA/SOC2 audits.</li>
+            <li><strong>AI Insights:</strong> Predictive cost and security risk detection.</li>
+          </ul>
+        </div>`;
     } else {
-      // 👋 STANDARD WELCOME (The Login/Signup Table)
-      await transporter.sendMail({
-        from: fromIdentity,
-        to: userEmail,
-        subject: 'Welcome to PHItag! 🛡️',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #333; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-            <h2 style="color: #003366; text-align: center;">Secure Your Cloud Governance</h2>
-            <p>Thanks for joining PHItag. You are currently on the <strong>Free Trial</strong>.</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-              <thead>
-                <tr style="background-color: #f8f9fa;">
-                  <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Feature</th>
-                  <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">Free</th>
-                  <th style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #2563eb;">Enterprise</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;">Azure Automation</td>
-                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">Manual</td>
-                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅ Full Auto</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;">Audit Vault</td>
-                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">Standard</td>
-                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅ Unlimited</td>
-                </tr>
-              </tbody>
-            </table>
+      // 👋 ENRICHED WELCOME TABLE (Matching your Screenshot)
+      emailBody = `
+        <div style="text-align: center; background-color: #003366; padding: 25px; border-radius: 15px 15px 0 0; color: white;">
+          <h1 style="margin: 0; font-size: 24px;">Welcome to PHItag</h1>
+        </div>
+        <div style="padding: 25px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 15px 15px;">
+          <p style="color: #475569;">Thanks for joining. Your environment is now connected. You are currently on the <strong>Free Trial</strong>.</p>
+          <p style="color: #475569; font-size: 14px;">Upgrade to a professional tier for full HIPAA automation:</p>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; color: #1e293b;">
+            <thead>
+              <tr style="background-color: #f8fafc;">
+                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">Feature</th>
+                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Pro ($699)</th>
+                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Elite ($1,899)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e2e8f0;">Automation</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Manual</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">Full Auto</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e2e8f0;">Audit Vault</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Standard</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">Unlimited</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e2e8f0;">AI Governance</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Basic</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">Advanced</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border: 1px solid #e2e8f0;">HIPAA Guard</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">-</td>
+                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">24/7 Monitoring</td>
+              </tr>
+            </tbody>
+          </table>
 
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://phitag.app/pricing" style="background-color: #003366; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Upgrade My Plan</a>
-            </div>
-          </div>`
-      });
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="https://phitag.app/pricing" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View Plans</a>
+          </div>
+        </div>`;
     }
+
+    await transporter.sendMail({
+      from: fromIdentity,
+      to: userEmail,
+      subject: emailSubject,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; line-height: 1.5;">
+          ${emailBody}
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 40px;">
+            © 2026 PHItag Governance. All rights reserved. <br>
+            If you have questions, reply to this email to speak with our compliance team.
+          </p>
+        </div>`
+    });
 
     return Response.json({ success: true });
   } catch (error: any) {
