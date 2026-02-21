@@ -4,6 +4,8 @@ import { getUserPlan } from '@/lib/firebase-admin';
 export async function POST(req: Request) {
   try {
     const { eventType, userEmail, newPlan, price } = await req.json();
+    
+    // Fallback: If no plan is in the request, try to get it from the database
     const livePlan = newPlan || (await getUserPlan(userEmail)) || "Free Trial";
 
     const transporter = nodemailer.createTransport({
@@ -18,9 +20,11 @@ export async function POST(req: Request) {
     const lowerEvent = eventType.toLowerCase();
     const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
 
+    // 🎯 FIX: Added 'checkout' and 'completed' to make sure Stripe triggers the upgrade email
     const isSale = lowerEvent.includes('sale') || 
                    lowerEvent.includes('upgrade') || 
                    lowerEvent.includes('completed') || 
+                   lowerEvent.includes('checkout') || 
                    lowerEvent.includes('subscription');
 
     // --- 1. ADMIN NOTIFICATION ---
@@ -32,8 +36,9 @@ export async function POST(req: Request) {
         <div style="font-family: sans-serif; padding: 20px; border: 2px solid #2563eb; border-radius: 12px;">
           <h2 style="color: #2563eb; margin: 0;">${isSale ? 'Revenue Alert! 🚀' : 'System Alert 🔔'}</h2>
           <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+          <p><strong>Event:</strong> ${eventType}</p>
           <p><strong>Customer:</strong> ${userEmail}</p>
-          <p><strong>Plan Tier:</strong> ${livePlan}</p>
+          <p><strong>Plan:</strong> ${livePlan}</p>
           ${price ? `<p><strong>Amount:</strong> $${price}</p>` : ''}
         </div>`
     });
@@ -43,6 +48,7 @@ export async function POST(req: Request) {
     let emailBody = '';
 
     if (isSale) {
+      // 🏆 RESTORED: UPGRADE CONFIRMATION
       emailSubject = `Your ${livePlan} Access is Now Active! 🛡️`;
       emailBody = `
         <h2 style="text-align: center; color: #003366; margin-bottom: 20px;">Upgrade Successful!</h2>
@@ -56,14 +62,13 @@ export async function POST(req: Request) {
           </ul>
         </div>`;
     } else {
-      // 👋 RESTORED ENRICHED TABLE (Matching Screenshot)
+      // 👋 RESTORED: HIGH-DETAIL WELCOME TABLE
       emailBody = `
         <div style="text-align: center; background-color: #003366; padding: 30px; border-radius: 15px 15px 0 0; color: white;">
           <h1 style="margin: 0; font-size: 26px;">Welcome to PHItag</h1>
         </div>
         <div style="padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 15px 15px;">
           <p style="color: #475569; font-size: 16px;">Thanks for joining. Your environment is now connected. You are currently on the <strong>Free Trial</strong>.</p>
-          <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">Ready for full HIPAA automation? Compare our professional tiers:</p>
           
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; color: #1e293b;">
             <thead>
@@ -96,7 +101,6 @@ export async function POST(req: Request) {
               </tr>
             </tbody>
           </table>
-
           <div style="text-align: center; margin-top: 35px;">
             <a href="https://phitag.app/pricing" style="background-color: #2563eb; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View All Plans</a>
           </div>
@@ -108,12 +112,9 @@ export async function POST(req: Request) {
       to: userEmail,
       subject: emailSubject,
       html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto;">
+        <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: auto;">
           ${emailBody}
-          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 40px; line-height: 1.5;">
-            © 2026 PHItag Governance. All rights reserved. <br>
-            Secure Cloud Solutions for Healthcare.
-          </p>
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 40px;">© 2026 PHItag Governance</p>
         </div>`
     });
 

@@ -47,8 +47,8 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // This "isSale" logic triggers the correct template in notify/route.ts
-          eventType: type === "upgraded" ? "💰 NEW SUBSCRIPTION" : "📉 SUBSCRIPTION CANCELED",
+          // 🎯 FIX: Using "checkout.completed" ensures the Notify route triggers the 'isSale' template
+          eventType: type === "upgraded" ? "checkout.session.completed" : "subscription.canceled",
           userEmail: email,
           newPlan: plan, 
           price: amount 

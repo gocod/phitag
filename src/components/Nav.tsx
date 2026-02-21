@@ -16,9 +16,18 @@ export default function Nav() {
   const [isSuiteOpen, setIsSuiteOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  
+  // 🎯 Added 'update' to the session hook to allow forced re-syncing
+  const { data: session, status, update } = useSession();
 
   useEffect(() => {
+    // 🚀 ANTI-FLASHING FIX: 
+    // This tells Next-Auth to refresh the user data from the database 
+    // whenever the user navigates to a new page.
+    if (status === "authenticated") {
+      update();
+    }
+
     const updateClock = () => {
       const now = new Date();
       setLastScanned(now.toLocaleTimeString('en-US', { 
@@ -39,7 +48,7 @@ export default function Nav() {
     setIsSuiteOpen(false); 
     
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pathname]);
+  }, [pathname, status, update]); // Re-runs on path change
 
   const suiteModules = {
     enforcement: [
