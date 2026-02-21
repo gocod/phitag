@@ -5,6 +5,16 @@ export async function POST(req: Request) {
   try {
     const { eventType, userEmail, newPlan, price } = await req.json();
     
+    // 🔑 QUIET MODE: Exit early for re-sign-ins. No email to user or admin.
+    const lowerEvent = eventType.toLowerCase();
+    const isSignIn = lowerEvent.includes('login') || 
+                     lowerEvent.includes('sign-in') || 
+                     lowerEvent.includes('authenticated');
+
+    if (isSignIn) {
+      return Response.json({ success: true, message: "Quiet Mode: Sign-in ignored" });
+    }
+
     // Fallback: If no plan is in the request, try to get it from the database
     const livePlan = newPlan || (await getUserPlan(userEmail)) || "Free Trial";
 
@@ -17,7 +27,6 @@ export async function POST(req: Request) {
       },
     });
 
-    const lowerEvent = eventType.toLowerCase();
     const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
 
     // 🎯 FIX: Added 'checkout' and 'completed' to make sure Stripe triggers the upgrade email

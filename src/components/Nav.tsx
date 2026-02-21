@@ -16,6 +16,8 @@ export default function Nav() {
   const [isSuiteOpen, setIsSuiteOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false); // New Search State
   const pathname = usePathname();
+  
+  // 🎯 Added 'update' to the session hook
   const { data: session, status, update } = useSession();
   
   // 🎯 Ref to prevent the "Frenzy" (infinite loops)
@@ -24,6 +26,7 @@ export default function Nav() {
   // Handle Clock and Keyboard Shortcuts
   useEffect(() => {
     // 🚀 Anti-Flashing Logic: Silently sync session ONLY on page change
+    // This ensures that if they just subscribed, the UI updates without a manual refresh
     if (status === "authenticated" && lastPathRef.current !== pathname) {
       update();
       lastPathRef.current = pathname;
@@ -146,12 +149,13 @@ export default function Nav() {
                   )}
                 </div>
 
-                {!session ? (
+                {status === "unauthenticated" || !session ? (
                   <button onClick={() => signIn()} className="cursor-pointer text-[11px] font-black text-slate-500 hover:text-[#003366] uppercase tracking-widest transition-colors py-2">
                     Sign In
                   </button>
                 ) : (
-                  <button onClick={() => signOut()} className="cursor-pointer text-[11px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors py-2">
+                  // 🚀 FIX: Forced callbackUrl ensures a clean state wipe on sign out
+                  <button onClick={() => signOut({ callbackUrl: '/' })} className="cursor-pointer text-[11px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors py-2">
                     Sign Out
                   </button>
                 )}
@@ -181,9 +185,12 @@ export default function Nav() {
         
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-              {session?.user?.name ? `Operator: ${session.user.name}` : "Public Read-Only Mode"}
+              {/* 🚀 FIX: Stricter check for authenticated status to prevent the 'Ghost' flash */}
+              {status === "authenticated" && session?.user?.name 
+                ? `Operator: ${session.user.name}` 
+                : "Public Read-Only Mode"}
             </span>
-            {session && (
+            {status === "authenticated" && (
               <Link href="/settings" className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-200 transition-all text-slate-400 hover:text-[#003366] cursor-pointer">
                 <Settings size={14} />
               </Link>
