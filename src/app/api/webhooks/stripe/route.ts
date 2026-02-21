@@ -21,8 +21,6 @@ export async function POST(req: Request) {
   let event;
 
   try {
-    // 2. Verify the event with your 'whsec_...' secret
-    // Explicitly use the secret from process.env
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
     if (!webhookSecret) {
@@ -36,23 +34,24 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error(`❌ Signature Verification Failed: ${error.message}`);
-    // This return is why you get a 400 error if the secret/body is mismatched
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
   const session = event.data.object as any;
 
-  // --- HELPER: TRIGGER NOTIFICATION ---
-  const notifyAdminOfUpgrade = async (email: string, plan: string, type: string) => {
+  // --- HELPER: TRIGGER NOTIFICATION (Updated for Brevo Logic) ---
+  const notifyAdminOfUpgrade = async (email: string, plan: string, type: string, amount?: number) => {
     try {
       const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
       await fetch(`${baseUrl}/api/admin/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // This "isSale" logic triggers the correct template in notify/route.ts
           eventType: type === "upgraded" ? "💰 NEW SUBSCRIPTION" : "📉 SUBSCRIPTION CANCELED",
           userEmail: email,
-          planName: plan
+          newPlan: plan, 
+          price: amount 
         }),
       });
     } catch (e) {
@@ -66,12 +65,14 @@ export async function POST(req: Request) {
     case "invoice.payment_succeeded": {
       const userEmail = session.customer_details?.email || session.metadata?.userEmail;
       
-      // Map "Pro" metadata from your Stripe Session to your DB string "Governance Pro"
       let planType = session.metadata?.planType || "Governance Pro";
       if (planType === "Pro") planType = "Governance Pro";
 
+      // Convert cents to dollars for the email
+      const priceAmount = session.amount_total ? session.amount_total / 100 : 0;
+
       if (userEmail) {
-        // Update Firestore with the new plan and Stripe Customer ID
+        // Update Firestore
         await db.collection("users").doc(userEmail).set({
           stripeCustomerId: session.customer,
           plan: planType,
@@ -79,8 +80,8 @@ export async function POST(req: Request) {
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        // Fire the notification (Nodemailer/Gmail)
-        await notifyAdminOfUpgrade(userEmail, planType, "upgraded");
+        // Fire the notification with the correct variables
+        await notifyAdminOfUpgrade(userEmail, planType, "upgraded", priceAmount);
         console.log(`✅ SUCCESS: ${userEmail} upgraded to ${planType}`);
       }
       break;
@@ -89,7 +90,6 @@ export async function POST(req: Request) {
     case "customer.subscription.deleted": {
       const stripeCustomerId = session.customer;
 
-      // Find user by Stripe Customer ID to downgrade them
       const userQuery = await db.collection("users")
         .where("stripeCustomerId", "==", stripeCustomerId)
         .limit(1)
