@@ -3,96 +3,112 @@ import { getUserPlan } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
   try {
-    const { eventType, userEmail } = await req.json();
-    const livePlan = (await getUserPlan(userEmail)) || "Free Trial";
+    const { eventType, userEmail, newPlan, price } = await req.json();
+    
+    // Fallback logic to get plan from DB if not provided in the request
+    const livePlan = newPlan || (await getUserPlan(userEmail)) || "Free Trial";
 
-    // 🚀 BREVO SMTP CONFIGURATION
     const transporter = nodemailer.createTransport({
       host: 'smtp-relay.brevo.com',
       port: 587,
       auth: {
-        user: 'a2f177001@smtp-brevo.com', 
+        user: 'a2f177001@smtp-brevo.com',
         pass: process.env.BREVO_PASSWORD, 
       },
     });
 
     const lowerEvent = eventType.toLowerCase();
-    
-    // 🎯 REFINED LOGIC: Captures "Successful Sign-In" (space) and "Sign-In" (hyphen)
-    const isWelcomeEvent = lowerEvent.includes('login') || 
-                           lowerEvent.includes('register') || 
-                           lowerEvent.includes('new user') ||
-                           lowerEvent.includes('sign-in') || 
-                           lowerEvent.includes('sign in'); 
-    
-    // ✅ PROFESSIONAL SENDER (Authenticated via Cloudflare/Brevo)
     const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
 
-    // --- 1. ADMIN NOTIFICATION (Always sent to you) ---
+    // --- LOGIC GATES ---
+    const isSale = lowerEvent.includes('sale') || lowerEvent.includes('upgrade') || lowerEvent.includes('completed');
+
+    // --- 1. ADMIN ALERT (The Emily Alert) ---
+    let adminSubject = `🔔 PHItag: ${eventType}`;
+    let adminBody = `<p><b>User:</b> ${userEmail}</p><p><b>Event:</b> ${eventType}</p>`;
+
+    if (isSale) {
+      adminSubject = `💰 NEW SALE: ${livePlan} ($${price || 'N/A'})`;
+      adminBody = `
+        <div style="border: 2px solid #2563eb; padding: 15px; border-radius: 10px;">
+          <h2 style="color: #2563eb;">Cha-Ching! PHItag Upgrade</h2>
+          <p><strong>User:</strong> ${userEmail}</p>
+          <p><strong>Plan:</strong> ${livePlan}</p>
+          <p><strong>Amount:</strong> $${price || 'N/A'}</p>
+        </div>`;
+    }
+
     await transporter.sendMail({
       from: fromIdentity,
       to: 'emilyli1965@gmail.com',
-      subject: `🔔 PHItag: ${eventType}`,
-      html: `
-        <div style="font-family:sans-serif; padding:20px; border:1px solid #eee; border-radius:12px;">
-          <h3 style="color:#003366;">Admin Alert</h3>
-          <p><b>Event:</b> ${eventType}</p>
-          <p><b>User:</b> ${userEmail}</p>
-          <p><b>Plan:</b> ${livePlan}</p>
-        </div>`
+      subject: adminSubject,
+      html: adminBody
     });
 
-    // --- 2. USER WELCOME MESSAGE (Sent to Customer/Yahoo) ---
-    // Only triggers if it's a welcome event and NOT your own admin email
-    if (isWelcomeEvent && userEmail !== 'emilyli1965@gmail.com') {
-      console.log(`✅ LOGIC MATCH: Sending welcome email to user: ${userEmail}`);
+    // --- 2. USER MESSAGES ---
 
+    if (isSale) {
+      // 🃏 UPGRADE CONFIRMATION (BaccaPro Style)
       await transporter.sendMail({
         from: fromIdentity,
         to: userEmail,
-        subject: "Welcome to PHItag - Secure Your Cloud Governance",
+        subject: `Your ${livePlan} is now Active! 🛡️`,
         html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 20px; overflow: hidden;">
-            <div style="background-color: #003366; padding: 30px; text-align: center; color: white;">
-              <h1 style="margin: 0; font-size: 20px;">Welcome to PHItag</h1>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #333; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+            <h2 style="text-align: center; color: #003366;">Welcome to Pro Access!</h2>
+            <p>Hi there,</p>
+            <p>Your upgrade to <strong>${livePlan}</strong> was successful. Your account has been updated with full premium automation features.</p>
+            
+            <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #003366;">
+              <p style="margin: 0; font-weight: bold; color: #003366;">Your New PHItag Features:</p>
+              <ul style="padding-left: 20px;">
+                <li>Full Azure HIPAA Automation</li>
+                <li>Unlimited Audit Vault History</li>
+                <li>Advanced Compliance Reporting</li>
+              </ul>
             </div>
-            <div style="padding: 30px; color: #334155;">
-              <p>Thanks for joining. Your environment is now connected. You are currently on the <strong>Free Trial</strong>.</p>
-              
-              <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; border: 1px solid #e2e8f0;">
-                <thead>
-                  <tr style="background-color: #f8fafc;">
-                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">Feature</th>
-                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Pro ($699)</th>
-                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Elite ($1,899)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0;">Azure Automation</td>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Manual</td>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Full Auto</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0;">Audit Vault</td>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Standard</td>
-                    <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">Unlimited</td>
-                  </tr>
-                </tbody>
-              </table>
 
-              <div style="text-align: center; margin-top: 30px;">
-                <a href="https://phitag.app/pricing" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View All Plans</a>
-              </div>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://phitag.app/dashboard" style="background-color: #003366; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Enter My Dashboard</a>
             </div>
-          </div>`,
+            
+            <p style="font-size: 12px; color: #888; text-align: center;">If you have any questions, simply reply to this email.</p>
+          </div>`
       });
-      console.log(`🚀 BREVO: Welcome email dispatched successfully.`);
+    } else {
+      // 👋 WELCOME MESSAGE (For Sign-ins/Registrations)
+      await transporter.sendMail({
+        from: fromIdentity,
+        to: userEmail,
+        subject: 'Welcome to PHItag! 🛡️',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #333; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+            <h2 style="color: #003366; text-align: center;">Secure Your Cloud Governance</h2>
+            <p>Thanks for joining PHItag. Your environment is now connected. You are currently on the <strong>${livePlan}</strong>.</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+                <tr style="background-color: #f8f9fa;">
+                  <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Feature</th>
+                  <th style="padding: 12px; border: 1px solid #ddd;">Free Trial</th>
+                  <th style="padding: 12px; border: 1px solid #ddd; color: #2563eb;">Pro</th>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #ddd;">Azure Automation</td>
+                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">Manual</td>
+                  <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅ Auto</td>
+                </tr>
+            </table>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://phitag.app/pricing" style="background-color: #003366; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Upgrade My Plan</a>
+            </div>
+          </div>`
+      });
     }
 
     return Response.json({ success: true });
   } catch (error: any) {
-    console.error("❌ NOTIFY ERROR:", error);
+    console.error('❌ NOTIFY ERROR:', error);
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }
