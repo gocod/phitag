@@ -24,7 +24,7 @@ export async function POST(req: Request) {
                            lowerEvent.includes('callback');
     
     // 🔐 DELIVERABILITY FIX: Using Gmail as sender address to pass SPF/DMARC checks for Yahoo
-    const fromIdentity = '"PHItag Governance" <emilyli1965@gmail.com>';
+    const fromIdentity = '"PHItag Governance" <onboarding@phitag.app>';
     const businessReplyTo = 'onboarding@phitag.app';
 
     // --- 1. ADMIN NOTIFICATION (To emilyli1965@gmail.com) ---
