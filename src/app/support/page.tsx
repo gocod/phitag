@@ -9,10 +9,30 @@ export default function SupportPage() {
     e.preventDefault();
     setStatus('loading');
     
-    // Simulate API call to your notify route
-    setTimeout(() => {
-      setStatus('success');
-    }, 1500);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      subject: formData.get('subject'),
+      email: formData.get('email'),
+      message: formData.get('message'),
+    };
+
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        setStatus('success');
+      } else {
+        alert("Something went wrong. Please try again.");
+        setStatus('idle');
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus('idle');
+    }
   };
 
   if (status === 'success') {
@@ -45,7 +65,6 @@ export default function SupportPage() {
       </header>
 
       <div className="grid md:grid-cols-5 gap-12 items-start">
-        {/* LEFT SIDE: INFO CARDS */}
         <div className="md:col-span-2 space-y-6">
           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white space-y-4">
             <FileText size={28} className="text-blue-400" />
@@ -67,13 +86,12 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* RIGHT SIDE: CONTACT FORM */}
         <div className="md:col-span-3 bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Subject</label>
-                <select className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all">
+                <select name="subject" className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all">
                   <option>Technical Support</option>
                   <option>BAA / Legal Request</option>
                   <option>Billing Inquiry</option>
@@ -82,13 +100,13 @@ export default function SupportPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Email</label>
-                <input required type="email" placeholder="you@company.com" className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+                <input name="email" required type="email" placeholder="you@company.com" className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Message</label>
-              <textarea required rows={4} placeholder="Describe your issue..." className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+              <textarea name="message" required rows={4} placeholder="Describe your issue..." className="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
             </div>
 
             <button 
@@ -102,7 +120,6 @@ export default function SupportPage() {
         </div>
       </div>
 
-      {/* FOOTER DOCS LINK */}
       <footer className="text-center pt-10">
         <p className="text-xs text-slate-400 font-bold mb-4 uppercase tracking-tighter">Check the Documentation first?</p>
         <a href="/docs" className="bg-slate-100 text-slate-600 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">
