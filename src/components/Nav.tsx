@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -14,18 +14,19 @@ import {
 export default function Nav() {
   const [lastScanned, setLastScanned] = useState("");
   const [isSuiteOpen, setIsSuiteOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // New Search State
   const pathname = usePathname();
-  
-  // 🎯 Added 'update' to the session hook to allow forced re-syncing
   const { data: session, status, update } = useSession();
+  
+  // 🎯 Ref to prevent the "Frenzy" (infinite loops)
+  const lastPathRef = useRef(pathname);
 
+  // Handle Clock and Keyboard Shortcuts
   useEffect(() => {
-    // 🚀 ANTI-FLASHING FIX: 
-    // This tells Next-Auth to refresh the user data from the database 
-    // whenever the user navigates to a new page.
-    if (status === "authenticated") {
+    // 🚀 Anti-Flashing Logic: Silently sync session ONLY on page change
+    if (status === "authenticated" && lastPathRef.current !== pathname) {
       update();
+      lastPathRef.current = pathname;
     }
 
     const updateClock = () => {
@@ -48,7 +49,7 @@ export default function Nav() {
     setIsSuiteOpen(false); 
     
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pathname, status, update]); // Re-runs on path change
+  }, [pathname, status, update]);
 
   const suiteModules = {
     enforcement: [
@@ -85,7 +86,7 @@ export default function Nav() {
                 <button className={`flex items-center gap-1 hover:text-blue-600 transition-colors py-4 cursor-pointer ${isSuiteOpen ? 'text-blue-600' : ''}`}>
                   Governance Suite <ChevronDown size={14} className={`transition-transform ${isSuiteOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+                {/* ... (Suite Dropdown Content) ... */}
                 {isSuiteOpen && (
                   <div className="absolute top-[100%] -left-4 w-[480px] bg-white border border-gray-200 shadow-2xl rounded-3xl p-6 flex gap-8 z-[110] animate-in fade-in slide-in-from-top-2">
                     <div className="flex-1 space-y-4">
@@ -120,6 +121,7 @@ export default function Nav() {
 
           {/* IDENTITY & ACTIONS */}
           <div className="flex items-center gap-6">
+            {/* ACTIVE SEARCH BUTTON */}
             <button 
               onClick={() => setIsSearchOpen(true)}
               className="group flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
@@ -135,7 +137,7 @@ export default function Nav() {
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
                   {status === "loading" ? (
                     <div className="w-6 h-6 rounded-full bg-slate-100 animate-pulse" />
-                  ) : status === "authenticated" && session?.user?.image ? (
+                  ) : session?.user?.image ? (
                     <div className="w-7 h-7 rounded-full border border-slate-200 overflow-hidden shadow-sm">
                       <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
                     </div>
@@ -144,7 +146,7 @@ export default function Nav() {
                   )}
                 </div>
 
-                {status === "unauthenticated" || !session ? (
+                {!session ? (
                   <button onClick={() => signIn()} className="cursor-pointer text-[11px] font-black text-slate-500 hover:text-[#003366] uppercase tracking-widest transition-colors py-2">
                     Sign In
                   </button>
@@ -176,14 +178,12 @@ export default function Nav() {
               SYNC: <span className="text-blue-600 font-bold uppercase">{lastScanned || "PENDING"}</span>
             </div>
           </div>
-          
+        
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-              {status === "authenticated" && session?.user?.name 
-                ? `Operator: ${session.user.name}` 
-                : "Public Read-Only Mode"}
+              {session?.user?.name ? `Operator: ${session.user.name}` : "Public Read-Only Mode"}
             </span>
-            {status === "authenticated" && (
+            {session && (
               <Link href="/settings" className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-200 transition-all text-slate-400 hover:text-[#003366] cursor-pointer">
                 <Settings size={14} />
               </Link>
