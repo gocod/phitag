@@ -31,25 +31,28 @@ export async function POST(req: Request) {
     const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
     const client = new ResourceManagementClient(credential, subscriptionId);
 
-    // 1. Fetch current resource state
-    // We use a general API version. Note: Some specialized resources 
-    // prefer their specific provider version, but 2021-04-01 is the stable standard for tags.
-    const resource = await client.resources.getById(resourceId, "2021-04-01");
+    // --- CHANGE START HERE ---
+    // 1. Determine the correct API Version
+    // Key Vaults require a newer version (2023-07-01) than generic resources.
+    const isVault = resourceId.toLowerCase().includes("microsoft.keyvault/vaults");
+    const apiVersion = isVault ? "2023-07-01" : "2021-04-01";
+
+    // 2. Fetch current resource state using the correct version
+    const resource = await client.resources.getById(resourceId, apiVersion);
     
-    // 2. Merge existing tags with the new compliant values
+    // 3. Merge existing tags with the new compliant values
     const finalTags = { 
       ...(resource.tags || {}), 
       ...tagUpdates 
     };
 
-    // 3. Push the update back to Azure
-    // Using beginUpdateByIdAndWait ensures the API doesn't return 
-    // until Azure has actually registered the change.
+    // 4. Push the update back to Azure using the correct version
     await client.resources.beginUpdateByIdAndWait(
       resourceId, 
-      "2021-04-01", 
+      apiVersion, 
       { tags: finalTags }
     );
+    // --- CHANGE END HERE ---
 
     return NextResponse.json({ 
       success: true, 
@@ -59,7 +62,6 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Remediation Error:", error.message);
     
-    // Catch common "Scope" errors (e.g., trying to tag a resource the Service Principal can't see)
     const errorMessage = error.message.includes("not found") 
       ? "Resource not found or Permission denied." 
       : error.message;
