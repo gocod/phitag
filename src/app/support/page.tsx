@@ -1,9 +1,15 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Mail, MessageSquare, FileText, LifeBuoy, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function SupportPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // 🚀 Scroll Function
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,13 +86,20 @@ export default function SupportPage() {
             <p className="text-slate-500 text-xs leading-relaxed font-medium">
               Average response time for Elite customers: <strong>2 Hours</strong>.
             </p>
-            <div className="flex items-center gap-2 text-blue-600 font-bold text-sm">
-              <Mail size={16} /> support@phitag.app
-            </div>
+            {/* 🛠️ UPDATED BUTTON: Replaces the static email link */}
+            <button 
+              onClick={scrollToForm}
+              className="flex items-center gap-2 text-blue-600 font-bold text-sm hover:translate-x-1 transition-transform group"
+            >
+              <Mail size={16} /> 
+              <span>Open Support Ticket</span>
+              <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
           </div>
         </div>
 
-        <div className="md:col-span-3 bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm">
+        {/* 🎯 Added formRef here to capture the scroll target */}
+        <div ref={formRef} className="md:col-span-3 bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm scroll-mt-10">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
