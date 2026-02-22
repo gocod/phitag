@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle');
+  const [lastVerified, setLastVerified] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const secretInputRef = useRef<HTMLInputElement>(null);
@@ -30,12 +31,14 @@ export default function SettingsPage() {
     const savedClient = localStorage.getItem('azure_client_id');
     const savedSecret = localStorage.getItem('azure_client_secret');
     const savedMode = localStorage.getItem('enforcement_mode');
+    const savedVerified = localStorage.getItem('last_verified_timestamp');
 
     if (savedSub) setSubscriptionId(savedSub);
     if (savedTenant) setTenantId(savedTenant);
     if (savedClient) setClientId(savedClient);
     if (savedSecret) setClientSecret(savedSecret);
     if (savedMode) setMode(savedMode as 'audit' | 'enforce');
+    if (savedVerified) setLastVerified(savedVerified);
   }, []);
 
   const handleFieldChange = (setter: Function, value: string) => {
@@ -62,7 +65,13 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
+        const timestamp = new Date().toLocaleString();
         setTestResult('success');
+        setLastVerified(timestamp);
+        localStorage.setItem('last_verified_timestamp', timestamp);
+        
+        // Success state stays for 4 seconds then reverts to allow re-testing
+        setTimeout(() => setTestResult('idle'), 4000);
       } else {
         setTestResult('error');
         console.error("Validation failed:", data.error);
@@ -118,24 +127,34 @@ export default function SettingsPage() {
           </div>
           
           <div className="flex items-center gap-4">
-            <button 
-              onClick={handleTestConnection}
-              disabled={isTesting || !clientSecret}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
-                testResult === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                testResult === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {isTesting ? <RefreshCcw size={10} className="animate-spin" /> : 
-               testResult === 'success' ? <CheckCircle2 size={10} /> :
-               testResult === 'error' ? <XCircle size={10} /> : null}
-              {isTesting ? 'Validating...' : testResult === 'success' ? 'Connection Live' : testResult === 'error' ? 'Failed' : 'Test Connection'}
-            </button>
+            {/* 🧪 DYNAMIC TEST BUTTON / SUCCESS BADGE */}
+            {testResult !== 'success' ? (
+              <button 
+                onClick={handleTestConnection}
+                disabled={isTesting || !clientSecret}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                  testResult === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {isTesting ? <RefreshCcw size={10} className="animate-spin" /> : testResult === 'error' ? <XCircle size={10} /> : null}
+                {isTesting ? 'Validating...' : testResult === 'error' ? 'Failed' : 'Test Connection'}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100 animate-in zoom-in duration-300">
+                <CheckCircle2 size={10} /> Connection Live
+              </div>
+            )}
 
-            <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border transition-colors ${hasChanges ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
-              {hasChanges ? 'Draft' : 'Connected'}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border transition-colors ${hasChanges ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
+                {hasChanges ? 'Draft' : 'Connected'}
+              </span>
+              {lastVerified && !hasChanges && (
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mr-1">
+                  Verified: {lastVerified}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         
@@ -267,7 +286,9 @@ export default function SettingsPage() {
             All audit evidence is encrypted with your Azure Key Vault. PHItag never sees your raw PHI data.
           </p>
           <a 
-            href={subscriptionId ? `https://portal.azure.com/#@${tenantId}/resource/subscriptions/${subscriptionId}/providers/Microsoft.KeyVault/vaults` : "#"}
+            href={subscriptionId 
+              ? `https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.KeyVault%2Fvaults/subscriptionId/${subscriptionId}?tenantId=${tenantId}` 
+              : "#"}
             target="_blank"
             rel="noopener noreferrer"
             className={`text-[10px] font-black uppercase tracking-[0.2em] pt-4 transition-all flex items-center gap-2 inline-flex ${

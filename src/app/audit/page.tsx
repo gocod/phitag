@@ -6,6 +6,7 @@ import {
   Database, Info
 } from 'lucide-react';
 import { useSession } from "next-auth/react";
+import Link from 'next/link';
 
 export default function AuditVault() {
   const { data: session } = useSession();
@@ -341,7 +342,7 @@ export default function AuditVault() {
       <div className="pt-8 text-center border-t border-slate-100">
         <p className="text-slate-400 text-sm font-medium">
           Looking for our legal and data protection policies? 
-          <a href="/privacy" className="text-blue-600 font-bold ml-1 hover:underline">View Privacy Policy</a>
+          <Link href="/privacy" className="text-blue-600 font-bold ml-1 hover:underline">View Privacy Policy</Link>
         </p>
       </div>
     </div>
