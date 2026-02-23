@@ -316,9 +316,7 @@ export default function SettingsPage() {
             hasChanges ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 scale-105' : 'bg-slate-800 text-white'
           }`}
         >
-          <div className={`absolute -left-12 transition-all duration-300 ${hasChanges ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
-            <Hand size={22} className="text-blue-500 fill-blue-500/10 rotate-90" />
-          </div>
+          
           {isSaving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
           {isSaving ? "Saving..." : "Save Settings"}
         </button>

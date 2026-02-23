@@ -17,7 +17,7 @@ const MANIFESTO_DEFAULTS = [
   { key: "Criticality", values: "Tier1, Tier2, Tier3", requirement: "Mandatory" },
   { key: "ContainsPHI", values: "Yes, No", requirement: "Mandatory" },
   { key: "HIPAAZone", values: "Secure, General", requirement: "Required if PHI=Yes" },
-  { key: "EncryptionRequired", values: "Yes", requirement: "Required if PHI=Yes" },
+  { key: "EncryptionRequired", values: "Yes, No", requirement: "Required if PHI=Yes" },
   { key: "BackupPolicy", values: "Hourly, Daily, Weekly, None", requirement: "Mandatory" },
   { key: "DRClass", values: "Hot, Warm, Cold", requirement: "Mandatory" },
   { key: "SecurityZone", values: "Internet, Internal, Restricted", requirement: "Mandatory" },
@@ -175,9 +175,86 @@ export default function SchemaPage() {
 
   const downloadBYOPTemplate = () => {
     const template = [
-      { key: "CostCenter", values: "FIN-100, ENG-200, MKT-300", requirement: "Mandatory" },
-      { key: "Environment", values: "Prod, Stage, Dev, Sandbox", requirement: "Mandatory" },
-      { key: "OwnerEmail", values: "user@company.com", requirement: "Mandatory" }
+      {
+    "key": "BusinessUnit",
+    "values": "Clinical, Research, Billing, Operations, IT",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "ApplicationName",
+    "values": "EpicEMR, Patient Portal, Billing System, LabSystem",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "Environment",
+    "values": "Prod, NonProd, Dev, Test, DR",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "Owner",
+    "values": "firstname.lastname@healthco.com",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "CostCenter",
+    "values": "CC-Clinical, CC-Research, CC-Billing, CC-IT",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "DataClassification",
+    "values": "PHI, PII, Internal, Public",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "Criticality",
+    "values": "Tier1, Tier2, Tier3",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "ContainsPHI",
+    "values": "Yes, No",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "HIPAAZone",
+    "values": "Secure, General",
+    "requirement": "Required if PHI=Yes"
+  },
+  {
+    "key": "EncryptionRequired",
+    "values": "Yes, No",
+    "requirement": "Required if PHI=Yes"
+  },
+  {
+    "key": "BackupPolicy",
+    "values": "Hourly, Daily, Weekly, None",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "DRClass",
+    "values": "Hot, Warm, Cold",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "SecurityZone",
+    "values": "Internet, Internal, Restricted",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "ComplianceScope",
+    "values": "HIPAA, SOX, HITRUST, None",
+    "requirement": "Mandatory"
+  },
+  {
+    "key": "ProjectCode",
+    "values": "EHR-Modernization, PatientApp, Billing2026",
+    "requirement": "Recommended"
+  },
+  {
+    "key": "BudgetOwner",
+    "values": "finance@healthco.com",
+    "requirement": "Recommended"
+  }
     ];
     downloadFile(JSON.stringify(template, null, 2), "phiTag_Custom_Schema_Template.json", "application/json");
   };

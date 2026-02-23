@@ -5,28 +5,25 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from "next-auth/react";
+import { usePermissions } from "@/hooks/usePermissions"; 
 import { 
   UserCircle, ChevronDown, Clock, Search, 
-  Zap, ArrowUpRight, Settings, ClipboardList, 
-  HardDrive, FileSearch, X, Command
+  Zap, ArrowUpRight, Settings, 
+  HardDrive, FileSearch, X, Command, Lock 
 } from 'lucide-react';
 
 export default function Nav() {
   const [lastScanned, setLastScanned] = useState("");
   const [isSuiteOpen, setIsSuiteOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // New Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
   
-  // 🎯 Added 'update' to the session hook
   const { data: session, status, update } = useSession();
-  
-  // 🎯 Ref to prevent the "Frenzy" (infinite loops)
+  const { isUpgradeRequired, tierName } = usePermissions(session);
+
   const lastPathRef = useRef(pathname);
 
-  // Handle Clock and Keyboard Shortcuts
   useEffect(() => {
-    // 🚀 Anti-Flashing Logic: Silently sync session ONLY on page change
-    // This ensures that if they just subscribed, the UI updates without a manual refresh
     if (status === "authenticated" && lastPathRef.current !== pathname) {
       update();
       lastPathRef.current = pathname;
@@ -54,13 +51,14 @@ export default function Nav() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [pathname, status, update]);
 
+  // Defined modules with their required tiers
   const suiteModules = {
     enforcement: [
-      { name: "Policy Engine", href: "/schema", icon: <Zap size={16} />, desc: "Proactive drift enforcement" },
+      { name: "Policy Engine", href: "/schema", icon: <Zap size={16} />, desc: "Proactive drift enforcement", tier: 'pro' as const },
     ],
     visibility: [
-      { name: "Traceback Map", href: "/infrastructure", icon: <HardDrive size={16} />, desc: "Resource-to-owner mapping" },
-      { name: "Audit Vault", href: "/audit", icon: <FileSearch size={16} />, desc: "HIPAA compliance evidence" },
+      { name: "Traceback Map", href: "/infrastructure", icon: <HardDrive size={16} />, desc: "Resource-to-owner mapping", tier: 'free' as const },
+      { name: "Audit Vault", href: "/audit", icon: <FileSearch size={16} />, desc: "HIPAA compliance evidence", tier: 'elite' as const },
     ]
   };
 
@@ -70,7 +68,6 @@ export default function Nav() {
         {/* TIER 1: GLOBAL NAV */}
         <div className="h-14 px-8 flex items-center justify-between border-b border-gray-50">
           <div className="flex items-center gap-12">
-            {/* LOGO */}
             <Link href="/" className="flex items-center gap-1 group cursor-pointer">
               <Image 
                 src="/logo.png" 
@@ -83,33 +80,52 @@ export default function Nav() {
               <span className="font-black text-xl tracking-tighter text-[#003366] italic">PHItag</span>
             </Link>
 
-            {/* MAIN LINKS */}
             <nav className="flex items-center gap-8 text-[13px] font-bold text-slate-500 tracking-tight">
               <div className="relative" onMouseEnter={() => setIsSuiteOpen(true)} onMouseLeave={() => setIsSuiteOpen(false)}>
                 <button className={`flex items-center gap-1 hover:text-blue-600 transition-colors py-4 cursor-pointer ${isSuiteOpen ? 'text-blue-600' : ''}`}>
                   Governance Suite <ChevronDown size={14} className={`transition-transform ${isSuiteOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {/* ... (Suite Dropdown Content) ... */}
+                
                 {isSuiteOpen && (
                   <div className="absolute top-[100%] -left-4 w-[480px] bg-white border border-gray-200 shadow-2xl rounded-3xl p-6 flex gap-8 z-[110] animate-in fade-in slide-in-from-top-2">
+                    {/* LEFT COLUMN: ENFORCEMENT */}
                     <div className="flex-1 space-y-4">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Build & Enforce</h4>
-                      {suiteModules.enforcement.map((link) => (
-                        <Link key={link.name} href={link.href} className="block group cursor-pointer">
-                          <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{link.name}</div>
-                          <div className="text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">{link.desc}</div>
-                        </Link>
-                      ))}
+                      {suiteModules.enforcement.map((link) => {
+                        const locked = isUpgradeRequired(link.tier);
+                        return (
+                          <Link key={link.name} href={locked ? "/pricing" : link.href} className={`block group cursor-pointer ${locked ? 'opacity-60' : ''}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{link.name}</div>
+                              {locked && <Lock size={12} className="text-amber-500" />}
+                            </div>
+                            <div className="text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">
+                              {locked ? `Requires ${link.tier.toUpperCase()} Plan` : link.desc}
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
+
                     <div className="w-[1px] bg-slate-100" />
+
+                    {/* RIGHT COLUMN: VISIBILITY */}
                     <div className="flex-1 space-y-4">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Track & Audit</h4>
-                      {suiteModules.visibility.map((link) => (
-                        <Link key={link.name} href={link.href} className="block group cursor-pointer">
-                          <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{link.name}</div>
-                          <div className="text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">{link.desc}</div>
-                        </Link>
-                      ))}
+                      {suiteModules.visibility.map((link) => {
+                        const locked = isUpgradeRequired(link.tier);
+                        return (
+                          <Link key={link.name} href={locked ? "/pricing" : link.href} className={`block group cursor-pointer ${locked ? 'opacity-60' : ''}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{link.name}</div>
+                              {locked && <Lock size={12} className="text-amber-500" />}
+                            </div>
+                            <div className="text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">
+                              {locked ? `Requires ${link.tier.toUpperCase()} Plan` : link.desc}
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -122,9 +138,7 @@ export default function Nav() {
             </nav>
           </div>
 
-          {/* IDENTITY & ACTIONS */}
           <div className="flex items-center gap-6">
-            {/* ACTIVE SEARCH BUTTON */}
             <button 
               onClick={() => setIsSearchOpen(true)}
               className="group flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
@@ -136,6 +150,13 @@ export default function Nav() {
             </button>
             
             <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
+              {/* CURRENT PLAN BADGE */}
+              {status === "authenticated" && (
+                <div className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-full">
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{tierName} Plan</span>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
                   {status === "loading" ? (
@@ -154,7 +175,6 @@ export default function Nav() {
                     Sign In
                   </button>
                 ) : (
-                  // 🚀 FIX: Forced callbackUrl ensures a clean state wipe on sign out
                   <button onClick={() => signOut({ callbackUrl: '/' })} className="cursor-pointer text-[11px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors py-2">
                     Sign Out
                   </button>
@@ -185,7 +205,6 @@ export default function Nav() {
         
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-              {/* 🚀 FIX: Stricter check for authenticated status to prevent the 'Ghost' flash */}
               {status === "authenticated" && session?.user?.name 
                 ? `Operator: ${session.user.name}` 
                 : "Public Read-Only Mode"}
@@ -225,16 +244,27 @@ export default function Nav() {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Activity</span>
               </div>
               <div className="space-y-1">
-                {['HIPAA-Compliance-Audit', 'Infrastructure-Map', 'Global-Tag-Policy'].map((item) => (
-                  <div key={item} className="flex items-center justify-between p-3 hover:bg-white hover:shadow-sm rounded-xl cursor-pointer group transition-all">
+                {[
+                  { label: 'HIPAA-Compliance-Audit', path: '/audit' },
+                  { label: 'Infrastructure-Map', path: '/infrastructure' },
+                  { label: 'Global-Tag-Policy', path: '/schema' }
+                ].map((item) => (
+                  <Link 
+                    key={item.label} 
+                    href={item.path}
+                    onClick={() => setIsSearchOpen(false)}
+                    className="flex items-center justify-between p-3 hover:bg-white hover:shadow-sm rounded-xl cursor-pointer group transition-all"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-white rounded-lg border border-slate-100 group-hover:border-blue-100">
                         <FileSearch size={14} className="text-slate-400 group-hover:text-blue-600" />
                       </div>
-                      <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">{item}</span>
+                      <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">
+                        {item.label}
+                      </span>
                     </div>
                     <ArrowUpRight size={14} className="text-slate-300 group-hover:text-blue-600" />
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

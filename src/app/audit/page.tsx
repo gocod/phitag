@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from 'react';
 import { 
   ShieldCheck, FileText, Download, Loader2, 
@@ -6,10 +7,13 @@ import {
   Database, Info
 } from 'lucide-react';
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/hooks/usePermissions"; 
 import Link from 'next/link';
 
 export default function AuditVault() {
   const { data: session } = useSession();
+  const { isUpgradeRequired, tierName } = usePermissions(session);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFixing, setIsFixing] = useState<string | null>(null); // Track which resource is being auto-tagged
   const [reportReady, setReportReady] = useState(false);
@@ -19,7 +23,11 @@ export default function AuditVault() {
   const [realResources, setRealResources] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, compliant: 0, score: 0 });
 
-  // 🏷️ ENRICHED REGISTRY (Combining Logic + Descriptions from Registry page)
+  // 🛡️ PERMISSION GATES
+  const isAutoFixLocked = isUpgradeRequired('pro');
+  const isDownloadLocked = isUpgradeRequired('elite');
+
+  // 🏷️ ENRICHED REGISTRY (Preserving your full original 16-key logic)
   const tagRegistry = [
     { key: "BusinessUnit", values: ["Clinical", "Research", "Billing", "Operations", "IT"], required: true, details: "Identifies the healthcare business unit that owns the workload for chargeback." },
     { key: "ApplicationName", values: ["EpicEMR", "PatientPortal", "BillingSystem", "LabSystem", "Analytics"], required: true, details: "Application or service associated with the resource." },
@@ -50,7 +58,6 @@ export default function AuditVault() {
     setIsGenerating(true);
     const creds = getAzureCreds();
     
-    // 🔗 BRIDGE: Get the overwrite from the Policy Engine
     const savedPolicy = localStorage.getItem("phiTag_active_policy");
     const activeSchema = savedPolicy ? JSON.parse(savedPolicy) : null;
 
@@ -81,7 +88,6 @@ export default function AuditVault() {
 
         setStats(updatedStats);
 
-        // 💾 Saves data for the Dashboard cards
         localStorage.setItem("phiTag_last_stats", JSON.stringify({
           ...updatedStats,
           phiCount: phiCount
@@ -97,6 +103,11 @@ export default function AuditVault() {
   };
 
   const handleAutoFix = async (resourceId: string, missingTags: string[]) => {
+    if (isAutoFixLocked) {
+      alert("Upgrade to PRO for Auto-Remediation features.");
+      return;
+    }
+
     setIsFixing(resourceId);
     const creds = getAzureCreds();
     
@@ -148,14 +159,18 @@ export default function AuditVault() {
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
       
-      {/* 🏛️ HEADER SECTION (Preserving your full original logic) */}
+      {/* 🏛️ HEADER SECTION */}
       <header className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <ShieldCheck className="text-blue-600" size={32} />
             Audit Vault
           </h1>
-          <p className="text-slate-500 mt-2 font-medium">Compliance Score: <span className="text-blue-600 font-bold">{stats.score}%</span></p>
+          <p className="text-slate-500 mt-2 font-medium">
+            Compliance Score: <span className="text-blue-600 font-bold">{stats.score}%</span> 
+            <span className="mx-2 text-slate-300">|</span> 
+            Plan: <span className="text-blue-600 font-bold uppercase">{tierName}</span>
+          </p>
         </div>
         
         <div className="flex gap-3">
@@ -165,9 +180,14 @@ export default function AuditVault() {
                 const firstFail = realResources.find(r => !r.isCompliant);
                 if(firstFail) handleAutoFix(firstFail.id, firstFail.missingRequirements);
               }}
-              className="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-amber-100 hover:bg-amber-600 transition-all flex items-center gap-2"
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center gap-2 ${
+                isAutoFixLocked 
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
+                : 'bg-amber-500 text-white shadow-amber-100 hover:bg-amber-600'
+              }`}
             >
-              <Wrench size={18} /> Auto-Fix Next
+              {isAutoFixLocked ? <Lock size={18} /> : <Wrench size={18} />} 
+              {isAutoFixLocked ? "Unlock Auto-Fix" : "Auto-Fix Next"}
             </button>
           )}
 
@@ -193,7 +213,7 @@ export default function AuditVault() {
         </div>
       </header>
 
-      {/* 🏛️ NEW: ARCHITECTURE OVERVIEW (Added from Registry) */}
+      {/* 🏛️ ARCHITECTURE OVERVIEW */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-blue-50 p-6 rounded-[2rem] border border-blue-100 space-y-2">
           <ShieldCheck className="text-blue-600" size={24} />
@@ -212,7 +232,7 @@ export default function AuditVault() {
         </div>
       </div>
 
-      {/* 📊 INVENTORY SECTION (Preserving your full original Filter logic) */}
+      {/* 📊 INVENTORY SECTION */}
       <section className="space-y-6">
         <div className="flex justify-between items-end">
           <h2 className="text-xl font-bold text-slate-900">Live Infrastructure State</h2>
@@ -243,7 +263,7 @@ export default function AuditVault() {
           </button>
         </div>
 
-        {/* 📑 TABLE (Preserving your exact original styling) */}
+        {/* 📑 TABLE */}
         <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
           <table className="w-full text-left">
             <thead className="bg-slate-50/50 border-b border-slate-100">
@@ -278,10 +298,14 @@ export default function AuditVault() {
                       ) : (
                         <button 
                           onClick={() => handleAutoFix(res.id, res.missingRequirements)}
-                          disabled={isFixing === res.id}
-                          className="text-[10px] font-black bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-all flex items-center gap-2 ml-auto"
+                          disabled={isFixing === res.id || isAutoFixLocked}
+                          className={`text-[10px] font-black px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 ml-auto ${
+                            isAutoFixLocked 
+                            ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                            : 'bg-slate-900 text-white hover:bg-blue-600'
+                          }`}
                         >
-                          {isFixing === res.id ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}
+                          {isFixing === res.id ? <Loader2 size={12} className="animate-spin" /> : isAutoFixLocked ? <Lock size={12} /> : <Wrench size={12} />}
                           AUTO-TAG
                         </button>
                       )}
@@ -294,7 +318,7 @@ export default function AuditVault() {
         </div>
       </section>
 
-      {/* 📜 MANIFESTO FOOTER (Now with Descriptions from Registry) */}
+      {/* 📜 MANIFESTO FOOTER */}
       <section className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden">
         <div className="relative z-10 space-y-8">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
@@ -303,9 +327,19 @@ export default function AuditVault() {
               <h2 className="text-3xl font-black italic tracking-tight">The Healthcare Tagging Manifesto</h2>
               <p className="text-slate-400 text-sm max-w-xl leading-relaxed font-medium">Download the full technical guide on enforcing 100% financial traceability using the 16 mandatory keys.</p>
             </div>
-            <a href="/healthcare-tagging-manifesto.pdf" target="_blank" className="bg-white/10 border border-white/20 hover:bg-white/20 px-6 py-4 rounded-2xl text-xs font-black uppercase flex items-center gap-2 shrink-0">
-              <Download size={18} /> Download Manifesto (PDF)
-            </a>
+            
+            <Link 
+              href={isDownloadLocked ? "/pricing" : "/healthcare-tagging-manifesto.pdf"} 
+              target={isDownloadLocked ? "_self" : "_blank"}
+              className={`px-6 py-4 rounded-2xl text-xs font-black uppercase flex items-center gap-2 shrink-0 border transition-all ${
+                isDownloadLocked 
+                ? 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10' 
+                : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'
+              }`}
+            >
+              {isDownloadLocked ? <Lock size={18} className="text-amber-500" /> : <Download size={18} />} 
+              {isDownloadLocked ? "Elite: Get Manifesto" : "Download Manifesto (PDF)"}
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">

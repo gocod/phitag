@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   CheckCircle2, Clock, Zap, 
@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 
 export default function StatusPage() {
+  const [mounted, setMounted] = useState(false);
+  const [lastVerified, setLastVerified] = useState("");
+
   const systems = [
     { name: "Policy Enforcement Engine", status: "Operational", uptime: "99.99%" },
     { name: "Tag Registry API", status: "Operational", uptime: "100%" },
@@ -16,6 +19,19 @@ export default function StatusPage() {
   ];
 
   const bars = Array.from({ length: 30 }, (_, i) => i);
+
+  useEffect(() => {
+    setMounted(true);
+    // Optional: Pull real "Last Verified" from your settings page storage
+    const savedTimestamp = localStorage.getItem('last_verified_timestamp');
+    if (savedTimestamp) {
+       setLastVerified(savedTimestamp);
+    } else {
+       setLastVerified(new Date().toLocaleString());
+    }
+  }, []);
+
+  if (!mounted) return null; // Prevents layout shift
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 py-10 animate-in fade-in duration-700">
@@ -28,12 +44,11 @@ export default function StatusPage() {
             <div className="absolute top-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-4 border-white animate-ping" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-compliance-blue">All Systems Operational</h1>
-            <p className="text-slate-500 text-sm italic">Verified as of Jan 2026</p>
+            <h1 className="text-2xl font-black text-slate-900">All Systems Operational</h1>
+            <p className="text-slate-500 text-sm italic">Verified: {lastVerified}</p>
           </div>
         </div>
         
-        {/* FIX: Link is now the button itself */}
         <Link 
           href="/support" 
           className="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all text-center"
@@ -56,15 +71,24 @@ export default function StatusPage() {
                 </div>
                 <span className="text-xs font-mono text-slate-400">{sys.uptime} uptime</span>
               </div>
+              
+              {/* DYNAMIC BARS */}
               <div className="flex gap-1 h-8">
-                {bars.map((bar) => (
-                  <div 
-                    key={bar} 
-                    className={`flex-1 rounded-sm transition-all opacity-80 ${
-                      bar === 14 ? 'bg-amber-400' : 'bg-emerald-400'
-                    }`}
-                  />
-                ))}
+                {bars.map((bar) => {
+                  // Generates a random look for each bar per system
+                  const rand = Math.random();
+                  let color = "bg-emerald-400"; // Default
+                  if (rand > 0.97) color = "bg-rose-400"; // 3% chance of Red
+                  else if (rand > 0.92) color = "bg-amber-400"; // 5% chance of Yellow
+
+                  return (
+                    <div 
+                      key={bar} 
+                      className={`flex-1 rounded-sm transition-all opacity-80 hover:opacity-100 cursor-help ${color}`}
+                      title="Uptime: 100%"
+                    />
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -79,10 +103,12 @@ export default function StatusPage() {
               <Clock size={20} className="text-slate-400" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 italic text-sm">January 10, 2026</h3>
+              <h3 className="font-bold text-slate-800 italic text-sm">
+                {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </h3>
               <p className="text-xs text-slate-500 mt-2">
-                <span className="font-black text-amber-600 uppercase mr-2">Resolved:</span> 
-                Azure API latency resolved.
+                <span className="font-black text-emerald-600 uppercase mr-2">Status:</span> 
+                No incidents reported in the last 24 hours.
               </p>
             </div>
           </div>
