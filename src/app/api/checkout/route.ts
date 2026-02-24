@@ -1,49 +1,52 @@
 import { stripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-// Import your authOptions if you have them, or use your session logic
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
 export async function POST(req: Request) {
   try {
-    const { priceId, userEmail } = await req.json();
+    const { priceId, userEmail, isTrial } = await req.json();
 
-    // 1. Double check security: Ensure a user is actually logged in
-    // This prevents random people from triggering checkout sessions
     if (!userEmail) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Define trial logic: Only the Pilot ID or the isTrial flag triggers the 90-day trial
+    const isPilot = isTrial || priceId === "pilot_90_day";
+    
+    // For the Pilot, we actually use the PRO Price ID in Stripe, but with a trial period
+    // If it's the pilot, ensure we use the Pro Price ID so the auto-upgrade targets the correct plan
+    const finalPriceId = priceId === "pilot_90_day" 
+      ? process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO 
+      : priceId;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: finalPriceId, quantity: 1 }],
       mode: 'subscription',
-      
-      // Pass the email to pre-fill the Stripe form
       customer_email: userEmail,
-      
-      // IMPORTANT: This allows your webhook to link the payment back to your user
       client_reference_id: userEmail, 
 
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       
-      // Metadata allows you to store custom info visible in the Stripe Dashboard
+      // 🚀 TRIAL LOGIC: This is the engine for your 90-day strategy
+      subscription_data: {
+        trial_period_days: isPilot ? 90 : undefined,
+        metadata: {
+          userEmail: userEmail,
+          isTrial: isPilot ? "true" : "false",
+          planTarget: priceId === "pilot_90_day" ? "Pro" : "Selected"
+        }
+      },
+
       metadata: {
         project: "PHItag Governance",
         userEmail: userEmail,
-        planType: priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO ? "Pro" : "Elite"
+        planType: isPilot ? "Clinical Pilot (90-Day)" : "Standard Subscription"
       },
 
-      // This ensures the metadata is also attached to the Subscription object itself
-      subscription_data: {
-        metadata: {
-          userEmail: userEmail,
-        }
-      },
-      
-      // Optional: allow promotion codes for early adopters
       allow_promotion_codes: true,
+      // Ensures the subscription is cancelled if the first payment fails after trial
+      payment_intent_data: isPilot ? undefined : { setup_future_usage: 'off_session' },
     });
 
     return NextResponse.json({ url: session.url });

@@ -10,19 +10,21 @@ export default function PricingPage() {
 
   const tiers = [
     {
-      name: "Free Trial",
+      name: "90-Day Clinical Pilot",
       price: "$0",
-      priceId: "free_tier", // Placeholder to handle local logic
-      desc: "Perfect for exploring the interface and testing 5 resources.",
+      priceId: "pilot_90_day", 
+      desc: "Full-scale enterprise POC for hospital systems and compliance officers.",
       features: [
-        "Standard HIPAA Tag Set",
-        "Manual Policy Scanning",
-        "Up to 5 Managed Resources",
-        "Community Support",
-        "No Credit Card Required"
+        "Unrestricted HIPAA Tag Set",
+        "Automated Policy Scanning",
+        "Unlimited Managed Resources",
+        "Full Audit Vault Access",
+        "Standard BAA Included",
+        "Infrastructure Traceback Map"
       ],
-      button: "Start Free Trial",
-      highlight: false
+      button: "Start 90-Day Pilot",
+      highlight: false,
+      footerNote: "Credit card required. Auto-renews to Pro after 90 days."
     },
     {
       name: "Governance Pro",
@@ -30,11 +32,10 @@ export default function PricingPage() {
       priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO,
       desc: "Ideal for health-tech startups and single-tenant environments.",
       features: [
-        "Everything in Free",
+        "Everything in Pilot",
         "Real-time Drift Detection",
-        "Up to 1,000 Managed Resources",
         "Weekly Compliance Scorecards",
-        "Manual Remediation Hooks",
+        "Onboarding Workshop",
         "Standard BAA Included"
       ],
       button: "Start Subscription",
@@ -49,9 +50,8 @@ export default function PricingPage() {
         "Everything in Pro",
         "Automated Tag Remediation",
         "Infrastructure Traceback Map",
-        "Up to 10,000 Managed Resources",
-        "HIPAA Audit Vault",
         "Policy Enforcement Campaigns",
+        "Monthly Compliance Review",
         "Priority Support (2h Response)"
       ],
       button: "Upgrade to Elite",
@@ -62,12 +62,7 @@ export default function PricingPage() {
   const handleCheckout = async (priceId: string | null | undefined) => {
     if (!priceId) return;
 
-    // 🆕 FREE TIER LOGIC: Don't go to Stripe, just go to Dashboard
-    if (priceId === "free_tier") {
-      window.location.href = session ? "/" : "/login?callbackUrl=/";
-      return;
-    }
-
+    // Handle Pilot Logic: Hospitals still go to Stripe to verify CC for the auto-upgrade
     if (!session) {
       window.location.href = `/login?callbackUrl=/pricing`;
       return;
@@ -81,7 +76,8 @@ export default function PricingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           priceId,
-          userEmail: session.user?.email 
+          userEmail: session.user?.email,
+          isTrial: priceId === "pilot_90_day" // Signal to API to apply 90-day trial
         }),
       });
 
@@ -115,7 +111,7 @@ export default function PricingPage() {
         {tiers.map((tier, i) => (
           <div 
             key={i} 
-            className={`relative p-8 rounded-[3.5rem] border transition-all duration-300 ${
+            className={`relative p-8 rounded-[3.5rem] border transition-all duration-300 flex flex-col min-h-[640px] ${
               tier.highlight 
                 ? 'bg-white border-blue-200 shadow-2xl shadow-blue-100 scale-105 z-10' 
                 : 'bg-slate-50 border-slate-200 hover:bg-white'
@@ -136,7 +132,7 @@ export default function PricingPage() {
               <p className="text-[11px] text-slate-500 mt-4 leading-relaxed font-bold italic h-10">{tier.desc}</p>
             </div>
 
-            <ul className="space-y-4 mb-10">
+            <ul className="space-y-4 mb-10 flex-grow">
               {tier.features.map((feature, j) => (
                 <li key={j} className="flex items-start gap-3 text-[13px] text-slate-600 font-bold">
                   <div className="mt-0.5 bg-blue-100 text-blue-600 rounded-lg p-1">
@@ -147,23 +143,30 @@ export default function PricingPage() {
               ))}
             </ul>
 
-            <button 
-              onClick={() => handleCheckout(tier.priceId)}
-              disabled={loadingPriceId === tier.priceId}
-              className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
-                tier.highlight 
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
-                  : tier.name === "Free Trial" 
-                    ? 'bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50'
-                    : 'bg-slate-900 text-white hover:bg-black'
-              }`}
-            >
-              {loadingPriceId === tier.priceId ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                tier.button
+            <div className="mt-auto space-y-4">
+              <button 
+                onClick={() => handleCheckout(tier.priceId)}
+                disabled={loadingPriceId === tier.priceId}
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                  tier.highlight 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
+                    : tier.price === "$0" 
+                      ? 'bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50'
+                      : 'bg-slate-900 text-white hover:bg-black'
+                }`}
+              >
+                {loadingPriceId === tier.priceId ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  tier.button
+                )}
+              </button>
+              {tier.footerNote && (
+                <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-tighter">
+                  {tier.footerNote}
+                </p>
               )}
-            </button>
+            </div>
           </div>
         ))}
       </div>

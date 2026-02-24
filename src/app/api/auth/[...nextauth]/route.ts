@@ -3,11 +3,10 @@ import { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import EmailProvider from "next-auth/providers/email";
-import { FirestoreAdapter } from "@next-auth/firebase-adapter"; // 👈 Required for Email Provider
+import { FirestoreAdapter } from "@next-auth/firebase-adapter";
 import { db } from "@/lib/firebaseAdmin"; 
 
 export const authOptions: NextAuthOptions = {
-  // 1. LINK THE ADAPTER
   adapter: FirestoreAdapter(db),
 
   providers: [
@@ -26,13 +25,36 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // 2. SESSION STRATEGY
   session: {
-    strategy: "jwt", // Fast, cookie-based sessions
+    strategy: "jwt",
   },
 
-  // 3. FINOPS LOGIC (Your custom writes)
- events: {
+  callbacks: {
+    async jwt({ token, user }) {
+      // On initial sign-in, add the tier from the database user object to the token
+      if (user) {
+        token.tier = (user as any).tier || (user as any).plan?.toLowerCase() || 'free';
+      }
+      
+      // Look up the latest tier from the DB if it's missing (helps sync after Stripe payment)
+      if (!token.tier && token.email) {
+        const userSnap = await db.collection("users").doc(token.email).get();
+        if (userSnap.exists) {
+          token.tier = userSnap.data()?.tier || userSnap.data()?.plan?.toLowerCase() || 'free';
+        }
+      }
+      return token;
+    },
+    async session({ session, token }: any) {
+      // Pass the tier from the token to the session object for the usePermissions hook
+      if (session.user) {
+        session.user.tier = token.tier || 'free';
+      }
+      return session;
+    }
+  },
+
+  events: {
     async signIn({ user }) {
       if (!user.email) return;
 
@@ -50,22 +72,19 @@ export const authOptions: NextAuthOptions = {
         };
 
         if (isNewUser) {
-          userData.plan = "Free Trial";
+          userData.plan = "free";
+          userData.tier = "free";
           userData.createdAt = new Date();
         }
 
         await userRef.set(userData, { merge: true });
 
-        // 🎯 THE FIX: Use the primary domain (phitag.app) to ensure the fetch doesn't fail on a redirect
         const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
-
-        console.log(`📡 Sending trigger to: ${baseUrl}/api/admin/notify for ${user.email}`);
-
         await fetch(`${baseUrl}/api/admin/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            eventType: eventTitle, // This triggers "Welcome" logic because it contains "Sign-In" or "New User"
+            eventType: eventTitle,
             userEmail: user.email,
           }),
         });

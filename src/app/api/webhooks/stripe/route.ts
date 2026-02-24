@@ -4,11 +4,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 
-// Ensures Next.js doesn't attempt to cache this route
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  // 1. Get the RAW body text for signature verification
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -22,16 +20,9 @@ export async function POST(req: Request) {
 
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    
-    if (!webhookSecret) {
-      throw new Error("STRIPE_WEBHOOK_SECRET is not defined in environment variables.");
-    }
+    if (!webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET missing");
 
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      webhookSecret
-    );
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (error: any) {
     console.error(`❌ Signature Verification Failed: ${error.message}`);
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
@@ -39,7 +30,7 @@ export async function POST(req: Request) {
 
   const session = event.data.object as any;
 
-  // --- HELPER: TRIGGER NOTIFICATION (Updated for Brevo Logic) ---
+  // --- HELPER: TRIGGER NOTIFICATION ---
   const notifyAdminOfUpgrade = async (email: string, plan: string, type: string, amount?: number) => {
     try {
       const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
@@ -47,7 +38,6 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // 🎯 FIX: Using "checkout.completed" ensures the Notify route triggers the 'isSale' template
           eventType: type === "upgraded" ? "checkout.session.completed" : "subscription.canceled",
           userEmail: email,
           newPlan: plan, 
@@ -55,7 +45,7 @@ export async function POST(req: Request) {
         }),
       });
     } catch (e) {
-      console.error("❌ Failed to trigger notification API:", e);
+      console.error("❌ Notification API error:", e);
     }
   };
 
@@ -63,33 +53,37 @@ export async function POST(req: Request) {
   switch (event.type) {
     case "checkout.session.completed":
     case "invoice.payment_succeeded": {
-      const userEmail = session.customer_details?.email || session.metadata?.userEmail;
+      // 🎯 Priority 1: Use client_reference_id (we set this as userEmail in checkout route)
+      // 🎯 Priority 2: Use customer_details or metadata
+      const userEmail = session.client_reference_id || session.customer_details?.email || session.metadata?.userEmail;
       
+      // Determine if this is a trial/pilot
+      const isTrial = session.subscription_data?.metadata?.isTrial === "true";
+      
+      // Logic: If it's a pilot, we force 'Governance Pro'. Otherwise, read the metadata.
       let planType = session.metadata?.planType || "Governance Pro";
+      if (isTrial) planType = "Governance Pro (90-Day Pilot)";
       if (planType === "Pro") planType = "Governance Pro";
 
-      // Convert cents to dollars for the email
       const priceAmount = session.amount_total ? session.amount_total / 100 : 0;
 
       if (userEmail) {
-        // Update Firestore
         await db.collection("users").doc(userEmail).set({
           stripeCustomerId: session.customer,
-          plan: planType,
+          plan: planType.toLowerCase(), // Store lowercase to match your Tier type ('pro', 'elite')
+          tier: (planType.toLowerCase().includes("elite")) ? "elite" : "pro", 
           isPro: true,
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        // Fire the notification with the correct variables
         await notifyAdminOfUpgrade(userEmail, planType, "upgraded", priceAmount);
-        console.log(`✅ SUCCESS: ${userEmail} upgraded to ${planType}`);
+        console.log(`✅ SUCCESS: ${userEmail} is now ${planType}`);
       }
       break;
     }
 
     case "customer.subscription.deleted": {
       const stripeCustomerId = session.customer;
-
       const userQuery = await db.collection("users")
         .where("stripeCustomerId", "==", stripeCustomerId)
         .limit(1)
@@ -100,13 +94,14 @@ export async function POST(req: Request) {
         const email = userDoc.id;
 
         await userDoc.ref.update({
-          plan: "Free Trial",
+          plan: "free",
+          tier: "free",
           isPro: false,
           canceledAt: FieldValue.serverTimestamp()
         });
 
-        await notifyAdminOfUpgrade(email, "Reverted to Free Trial", "canceled");
-        console.log(`❌ CANCELED: Access revoked for ${email}`);
+        await notifyAdminOfUpgrade(email, "Reverted to Free", "canceled");
+        console.log(`❌ ACCESS REVOKED: ${email}`);
       }
       break;
     }
