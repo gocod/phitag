@@ -1,18 +1,43 @@
 "use client";
-import React, { useState } from 'react';
-import { Check, ShieldCheck, ArrowRight, ShieldAlert, Loader2, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, ShieldCheck, ArrowRight, ShieldAlert, Loader2, Zap, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from "next-auth/react";
+
+// 🛠️ CONFIG: Handle potential missing environment variables gracefully
+const STRIPE_IDS = {
+  PILOT: "pilot_90_day",
+  PRO: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO || "MISSING_PRO_ID",
+  ELITE: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ELITE || "MISSING_ELITE_ID"
+};
 
 export default function PricingPage() {
   const { data: session } = useSession();
   const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+
+  // 🕒 COUNTDOWN LOGIC
+  useEffect(() => {
+    // In a real app, 'trial_start' would come from your DB via the session
+    // For this demo, we'll check localStorage or default to "today"
+    const trialStartStr = localStorage.getItem('trial_start_date') || new Date().toISOString();
+    const startDate = new Date(trialStartStr);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 90);
+
+    const now = new Date();
+    const diffTime = endDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Only show if the user is on a pilot plan (mocked check)
+    setDaysRemaining(diffDays > 0 ? diffDays : 0);
+  }, []);
 
   const tiers = [
     {
       name: "90-Day Clinical Pilot",
       price: "$0",
-      priceId: "pilot_90_day", 
+      priceId: STRIPE_IDS.PILOT, 
       desc: "Full-scale enterprise POC for hospital systems and compliance officers.",
       features: [
         "Unrestricted HIPAA Tag Set",
@@ -29,7 +54,7 @@ export default function PricingPage() {
     {
       name: "Governance Pro",
       price: "$699",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO,
+      priceId: STRIPE_IDS.PRO,
       desc: "Ideal for health-tech startups and single-tenant environments.",
       features: [
         "Everything in Pilot",
@@ -44,7 +69,7 @@ export default function PricingPage() {
     {
       name: "Compliance Elite",
       price: "$1,899",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ELITE,
+      priceId: STRIPE_IDS.ELITE,
       desc: "Full automated enforcement for hospital systems and large payers.",
       features: [
         "Everything in Pro",
@@ -59,10 +84,12 @@ export default function PricingPage() {
     }
   ];
 
-  const handleCheckout = async (priceId: string | null | undefined) => {
-    if (!priceId) return;
+  const handleCheckout = async (priceId: string) => {
+    if (priceId.includes("MISSING")) {
+      alert("Configuration Error: Please set your NEXT_PUBLIC_STRIPE_PRICE_IDs in .env.local");
+      return;
+    }
 
-    // Handle Pilot Logic: Hospitals still go to Stripe to verify CC for the auto-upgrade
     if (!session) {
       window.location.href = `/login?callbackUrl=/pricing`;
       return;
@@ -77,12 +104,16 @@ export default function PricingPage() {
         body: JSON.stringify({ 
           priceId,
           userEmail: session.user?.email,
-          isTrial: priceId === "pilot_90_day" // Signal to API to apply 90-day trial
+          isTrial: priceId === STRIPE_IDS.PILOT 
         }),
       });
 
       const data = await response.json();
       if (data.url) {
+        // If they just started a pilot, save the date for the timer
+        if (priceId === STRIPE_IDS.PILOT) {
+          localStorage.setItem('trial_start_date', new Date().toISOString());
+        }
         window.location.href = data.url;
       } else {
         setLoadingPriceId(null);
@@ -96,7 +127,20 @@ export default function PricingPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-16 py-10 animate-in fade-in duration-700">
-      <section className="text-center space-y-4">
+      
+      {/* 🏁 HEADER WITH TRIAL COUNTDOWN */}
+      <section className="text-center space-y-4 relative">
+        {daysRemaining !== null && (
+          <div className="absolute top-0 right-0 md:right-10 animate-bounce">
+            <div className="bg-amber-100 border border-amber-200 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
+              <Clock size={14} className="text-amber-600" />
+              <span className="text-[10px] font-black uppercase text-amber-700 tracking-tighter">
+                Trial: {daysRemaining} Days Left
+              </span>
+            </div>
+          </div>
+        )}
+
         <h2 className="text-blue-600 font-black uppercase tracking-[0.3em] text-[10px] italic">Cloud Safeguards</h2>
         <h1 className="text-5xl font-black text-slate-900 tracking-tighter leading-tight">
           Invest in <span className="text-blue-600">Compliance.</span> <br/>
@@ -145,9 +189,9 @@ export default function PricingPage() {
 
             <div className="mt-auto space-y-4">
               <button 
-                onClick={() => handleCheckout(tier.priceId)}
+                onClick={() => handleCheckout(tier.priceId!)}
                 disabled={loadingPriceId === tier.priceId}
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   tier.highlight 
                     ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
                     : tier.price === "$0" 
@@ -171,6 +215,7 @@ export default function PricingPage() {
         ))}
       </div>
 
+      {/* 🛡️ BOTTOM CTA */}
       <div className="bg-slate-900 rounded-[3rem] p-12 text-white flex flex-col md:flex-row items-center justify-between gap-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5">
             <ShieldAlert size={180} />

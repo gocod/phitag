@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, Suspense, useRef } from 'react';
+import React, { useEffect, Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { 
-  CheckCircle2, Settings, ShieldCheck, Zap, FileDown 
+  CheckCircle2, Settings, ShieldCheck, Zap, FileDown, Calendar
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -13,15 +13,20 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const { data: session, status, update } = useSession(); 
+  const [isPilotSuccess, setIsPilotSuccess] = useState(false);
   
-  // ⚡ tracks if we've already run the success logic to prevent loops
   const hasCelebrated = useRef(false);
 
   useEffect(() => {
-    // If logic already ran, don't trigger again (Fixes the flashing fireworks)
     if (hasCelebrated.current) return;
 
-    // 1. Celebration (Only runs once)
+    // 1. Check if this was a Pilot checkout via localStorage set in pricing page
+    const trialStarted = localStorage.getItem('trial_start_date');
+    if (trialStarted) {
+      setIsPilotSuccess(true);
+    }
+
+    // 2. Celebration
     confetti({
       particleCount: 150,
       spread: 70,
@@ -29,7 +34,7 @@ function SuccessContent() {
       colors: ['#2563eb', '#10b981']
     });
 
-    // 2. ⚡ SESSION RECOVERY:
+    // 3. Session Syncing Logic
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
         window.location.reload();
@@ -37,9 +42,7 @@ function SuccessContent() {
       return () => clearTimeout(timer);
     }
 
-    // 3. ⚡ PERMISSION SYNC:
     if (status === "authenticated") {
-      // FIX: Use 'as any' to bypass the TypeScript 'plan' property error
       const user = session?.user as any;
       const isUpgraded = user?.plan === "Pro" || user?.plan === "Elite";
       
@@ -55,7 +58,6 @@ function SuccessContent() {
     }
   }, [status, update, session]);
 
-  // PROTECTIVE RENDER: Prevents flickering
   if (status === "loading") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -73,14 +75,31 @@ function SuccessContent() {
         <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-50 rounded-full mb-4">
           <CheckCircle2 size={40} className="text-emerald-500" />
         </div>
+        
         <h1 className="text-4xl font-black text-slate-900 tracking-tight">
-          Governance Suite <span className="text-blue-600">Activated.</span>
+          {isPilotSuccess ? (
+            <>Pilot Program <span className="text-blue-600">Active.</span></>
+          ) : (
+            <>Governance Suite <span className="text-blue-600">Activated.</span></>
+          )}
         </h1>
-        <p className="text-slate-500 text-lg max-w-md mx-auto font-medium">
-          Your compliance engine is now online. Your session is currently syncing with your new permissions.
+
+        <p className="text-slate-500 text-lg max-w-md mx-auto font-medium leading-relaxed">
+          {isPilotSuccess 
+            ? "Welcome to your 90-day clinical pilot. You have full access to Pro features to secure your Azure environment."
+            : "Your compliance engine is now online. Your session is currently syncing with your new permissions."
+          }
         </p>
+
+        {isPilotSuccess && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100 shadow-sm animate-pulse">
+            <Calendar size={14} />
+            <span className="text-xs font-black uppercase tracking-widest">Auto-Upgrade scheduled in 90 Days</span>
+          </div>
+        )}
+
         {sessionId && (
-           <p className="text-[10px] font-mono text-slate-300 uppercase tracking-widest">
+           <p className="text-[10px] font-mono text-slate-300 uppercase tracking-widest block mt-4">
              Ref: {sessionId.slice(0, 18)}...
            </p>
         )}
@@ -92,15 +111,15 @@ function SuccessContent() {
         </div>
         
         <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-8">
-          Next Steps
+          Next Steps for Onboarding
         </h2>
 
         <div className="space-y-8 relative z-10">
           <div className="flex gap-6">
             <div className="flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold shadow-lg shadow-blue-200">1</div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900">Connect Azure</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">Enter credentials in Settings to start your first scan.</p>
+              <h3 className="font-bold text-slate-900">Connect Azure Credentials</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Head to Settings to input your Service Principal and Subscription IDs.</p>
               <Link href="/settings" className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
                 Go to Settings <Settings size={14} />
               </Link>
@@ -110,7 +129,8 @@ function SuccessContent() {
           <div className="flex gap-6">
             <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">2</div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900">Download Manifesto</h3>
+              <h3 className="font-bold text-slate-900">Download BAA & Manifesto</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Prepare your compliance documentation for the clinical review.</p>
               <a href="/healthcare-tagging-manifesto.pdf" download className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
                 Download PDF <FileDown size={14} />
               </a>
@@ -120,7 +140,8 @@ function SuccessContent() {
           <div className="flex gap-6">
             <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">3</div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900">Audit Vault</h3>
+              <h3 className="font-bold text-slate-900">Initialize Audit Vault</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Access your secure logging environment to view the first set of drift reports.</p>
               <Link href="/audit" className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
                 Go to Audit Vault <ShieldCheck size={14} />
               </Link>

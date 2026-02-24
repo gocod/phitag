@@ -4,6 +4,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 
+/**
+ * STRIPE WEBHOOK HANDLER
+ * This handles the transition from Checkout to active Subscription.
+ * Optimized for the 90-Day Clinical Pilot strategy.
+ */
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
@@ -11,8 +17,9 @@ export async function POST(req: Request) {
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
 
+  // --- SECURITY CHECK: SIGNATURE ---
   if (!signature) {
-    console.error("❌ Webhook Error: No stripe-signature found");
+    console.error("❌ Webhook Error: No stripe-signature found in headers");
     return new NextResponse("No signature found", { status: 400 });
   }
 
@@ -20,7 +27,10 @@ export async function POST(req: Request) {
 
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET missing");
+    if (!webhookSecret) {
+      console.error("❌ Configuration Error: STRIPE_WEBHOOK_SECRET is missing from environment");
+      throw new Error("STRIPE_WEBHOOK_SECRET missing");
+    }
 
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (error: any) {
@@ -30,60 +40,82 @@ export async function POST(req: Request) {
 
   const session = event.data.object as any;
 
-  // --- HELPER: TRIGGER NOTIFICATION ---
+  // --- HELPER: TRIGGER ADMIN NOTIFICATION ---
+  // This ensures your team is alerted via your internal API when a hospital joins the pilot.
   const notifyAdminOfUpgrade = async (email: string, plan: string, type: string, amount?: number) => {
     try {
       const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
+      const notificationPayload = {
+        eventType: type === "upgraded" ? "checkout.session.completed" : "subscription.canceled",
+        userEmail: email,
+        newPlan: plan, 
+        price: amount 
+      };
+
+      console.log(`📡 Sending notification to Admin API for: ${email}`);
+      
       await fetch(`${baseUrl}/api/admin/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventType: type === "upgraded" ? "checkout.session.completed" : "subscription.canceled",
-          userEmail: email,
-          newPlan: plan, 
-          price: amount 
-        }),
+        body: JSON.stringify(notificationPayload),
       });
     } catch (e) {
-      console.error("❌ Notification API error:", e);
+      console.error("❌ Notification API error (Non-fatal):", e);
     }
   };
 
   // --- HANDLE STRIPE EVENTS ---
+  // checkout.session.completed: Fired when the user finishes the Stripe hosted flow.
+  // customer.subscription.deleted: Fired when a subscription ends or is canceled.
   switch (event.type) {
-    case "checkout.session.completed":
-    case "invoice.payment_succeeded": {
-      // 🎯 Priority 1: Use client_reference_id (we set this as userEmail in checkout route)
-      // 🎯 Priority 2: Use customer_details or metadata
+    case "checkout.session.completed": {
+      console.log("🔔 Processing checkout.session.completed...");
+
+      // 🎯 RESOLVE USER IDENTITY
+      // We prioritize client_reference_id because it is the most reliable link to our session.
       const userEmail = session.client_reference_id || session.customer_details?.email || session.metadata?.userEmail;
       
-      // Determine if this is a trial/pilot
-      const isTrial = session.subscription_data?.metadata?.isTrial === "true";
+      if (!userEmail) {
+        console.error("❌ Webhook Critical Error: No userEmail could be resolved from session object");
+        break;
+      }
+
+      // 🎯 RESOLVE PLAN & TIER (Normalization Fix)
+      // We read the plan name from metadata and convert to lowercase to match NextAuth 'pro'/'elite' logic.
+      const rawPlan = session.metadata?.planType || "Governance Pro";
+      const normalizedPlan = rawPlan.toLowerCase();
       
-      // Logic: If it's a pilot, we force 'Governance Pro'. Otherwise, read the metadata.
-      let planType = session.metadata?.planType || "Governance Pro";
-      if (isTrial) planType = "Governance Pro (90-Day Pilot)";
-      if (planType === "Pro") planType = "Governance Pro";
+      // Determine Tier: If the string contains 'elite', give them 'elite' tier, otherwise 'pro'.
+      const finalTier = normalizedPlan.includes("elite") ? "elite" : "pro";
 
       const priceAmount = session.amount_total ? session.amount_total / 100 : 0;
 
-      if (userEmail) {
-        await db.collection("users").doc(userEmail).set({
-          stripeCustomerId: session.customer,
-          plan: planType.toLowerCase(), // Store lowercase to match your Tier type ('pro', 'elite')
-          tier: (planType.toLowerCase().includes("elite")) ? "elite" : "pro", 
-          isPro: true,
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
+      console.log(`🔄 Updating Firestore: Setting ${userEmail} to Tier: ${finalTier}`);
 
-        await notifyAdminOfUpgrade(userEmail, planType, "upgraded", priceAmount);
-        console.log(`✅ SUCCESS: ${userEmail} is now ${planType}`);
-      }
+      // 🎯 FIRESTORE UPDATE
+      // We use .set with merge: true to avoid deleting custom user data like 'name' or 'avatar'
+      await db.collection("users").doc(userEmail).set({
+        stripeCustomerId: session.customer,
+        stripeSubscriptionId: session.subscription,
+        plan: normalizedPlan, // Saves as 'governance pro' or 'compliance elite'
+        tier: finalTier,      // Saves as 'pro' or 'elite'
+        isPro: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      // 🎯 TRIGGER NOTIFICATION
+      await notifyAdminOfUpgrade(userEmail, rawPlan, "upgraded", priceAmount);
+      
+      console.log(`✅ WEBHOOK SUCCESS: ${userEmail} is now ${finalTier.toUpperCase()}`);
       break;
     }
 
     case "customer.subscription.deleted": {
+      console.log("🔔 Processing customer.subscription.deleted...");
+      
       const stripeCustomerId = session.customer;
+      
+      // Look up user by Stripe ID since we don't have their email in the session metadata here
       const userQuery = await db.collection("users")
         .where("stripeCustomerId", "==", stripeCustomerId)
         .limit(1)
@@ -93,6 +125,8 @@ export async function POST(req: Request) {
         const userDoc = userQuery.docs[0];
         const email = userDoc.id;
 
+        console.log(`⚠️ Revoking access for: ${email}`);
+
         await userDoc.ref.update({
           plan: "free",
           tier: "free",
@@ -101,14 +135,18 @@ export async function POST(req: Request) {
         });
 
         await notifyAdminOfUpgrade(email, "Reverted to Free", "canceled");
-        console.log(`❌ ACCESS REVOKED: ${email}`);
+        console.log(`❌ ACCESS REVOKED: ${email} downgraded to free tier`);
+      } else {
+        console.warn(`⚠️ Subscription deleted for unknown Stripe Customer ID: ${stripeCustomerId}`);
       }
       break;
     }
 
     default:
-      console.log(`ℹ️ Unhandled event type: ${event.type}`);
+      // Other events like invoice.created or customer.updated are ignored for now.
+      console.log(`ℹ️ Unhandled Stripe event type: ${event.type}`);
   }
 
+  // Always return a 200 OK to Stripe within 2 seconds to avoid retry-loops.
   return new NextResponse("Webhook Received", { status: 200 });
 }

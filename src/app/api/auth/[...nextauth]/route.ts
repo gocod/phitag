@@ -6,6 +6,12 @@ import EmailProvider from "next-auth/providers/email";
 import { FirestoreAdapter } from "@next-auth/firebase-adapter";
 import { db } from "@/lib/firebaseAdmin"; 
 
+/**
+ * NEXTAUTH CONFIGURATION
+ * Handles session management, JWT token enrichment, and user synchronization.
+ * Includes "Instant-Sync" logic for Stripe tier upgrades.
+ */
+
 export const authOptions: NextAuthOptions = {
   adapter: FirestoreAdapter(db),
 
@@ -30,25 +36,45 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
-      // On initial sign-in, add the tier from the database user object to the token
+    async jwt({ token, user, trigger, session }) {
+      // 1. INITIAL SIGN-IN LOGIC
+      // On the very first login, we map the tier/plan from the user object to the JWT.
       if (user) {
+        // We normalize to lowercase here to match the 'pro' or 'elite' UI expectations.
         token.tier = (user as any).tier || (user as any).plan?.toLowerCase() || 'free';
       }
       
-      // Look up the latest tier from the DB if it's missing (helps sync after Stripe payment)
-      if (!token.tier && token.email) {
-        const userSnap = await db.collection("users").doc(token.email).get();
-        if (userSnap.exists) {
-          token.tier = userSnap.data()?.tier || userSnap.data()?.plan?.toLowerCase() || 'free';
+      // 2. ⚡ INSTANT SYNC TRIGGER
+      // When the success page calls update(), this block forces the token to refresh
+      // with the newest tier data passed from the frontend.
+      if (trigger === "update" && session?.tier) {
+        token.tier = session.tier.toLowerCase();
+      }
+
+      // 3. DATABASE FALLBACK (THE "SAFETY NET")
+      // If the token says 'free', we do a quick check against Firestore.
+      // This solves the issue where the user pays but doesn't logout/login.
+      if ((!token.tier || token.tier === 'free') && token.email) {
+        try {
+          const userSnap = await db.collection("users").doc(token.email).get();
+          if (userSnap.exists) {
+            const dbData = userSnap.data();
+            token.tier = dbData?.tier || dbData?.plan?.toLowerCase() || 'free';
+          }
+        } catch (error) {
+          console.error("⚠️ JWT Callback: Firestore lookup failed", error);
         }
       }
+
       return token;
     },
+
     async session({ session, token }: any) {
-      // Pass the tier from the token to the session object for the usePermissions hook
+      // 4. SESSION ENRICHMENT
+      // We pass the tier from the encrypted JWT token to the client-side session.
+      // This is what the 'usePermissions' hook and pricing UI actually read.
       if (session.user) {
-        session.user.tier = token.tier || 'free';
+        session.user.tier = (token.tier as string) || 'free';
       }
       return session;
     }
@@ -71,14 +97,17 @@ export const authOptions: NextAuthOptions = {
           lastLogin: new Date(),
         };
 
+        // Initialize defaults for new signups
         if (isNewUser) {
           userData.plan = "free";
           userData.tier = "free";
           userData.createdAt = new Date();
         }
 
+        // Use merge: true so we don't overwrite existing Stripe metadata
         await userRef.set(userData, { merge: true });
 
+        // Admin Notification Webhook
         const baseUrl = process.env.NEXTAUTH_URL || "https://phitag.app";
         await fetch(`${baseUrl}/api/admin/notify`, {
           method: 'POST',
@@ -87,7 +116,7 @@ export const authOptions: NextAuthOptions = {
             eventType: eventTitle,
             userEmail: user.email,
           }),
-        });
+        }).catch(() => console.warn("Admin notify offline"));
 
       } catch (error) {
         console.error("❌ Auth Event Logic Error:", error);
