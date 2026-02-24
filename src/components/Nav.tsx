@@ -54,11 +54,11 @@ export default function Nav() {
   // Defined modules with their required tiers
   const suiteModules = {
     enforcement: [
-      { name: "Policy Engine", href: "/schema", icon: <Zap size={16} />, desc: "Proactive drift enforcement", tier: 'pro' as const },
+      { name: "Policy Engine", href: "/schema", icon: <Zap size={16} />, desc: "Proactive drift enforcement", tier: 'free' as const },
     ],
     visibility: [
       { name: "Traceback Map", href: "/infrastructure", icon: <HardDrive size={16} />, desc: "Resource-to-owner mapping", tier: 'free' as const },
-      { name: "Audit Vault", href: "/audit", icon: <FileSearch size={16} />, desc: "HIPAA compliance evidence", tier: 'elite' as const },
+      { name: "Audit Vault", href: "/audit", icon: <FileSearch size={16} />, desc: "HIPAA compliance evidence", tier: 'free' as const },
     ]
   };
 
