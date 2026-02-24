@@ -15,6 +15,10 @@ export default function SettingsPage() {
   const [clientSecret, setClientSecret] = useState('');
   const [mode, setMode] = useState<'audit' | 'enforce'>('audit');
   
+  // NEW: State for BYOK fields
+  const [keyVaultUri, setKeyVaultUri] = useState('');
+  const [keyName, setKeyName] = useState('');
+
   // UX States
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -32,6 +36,10 @@ export default function SettingsPage() {
     const savedSecret = localStorage.getItem('azure_client_secret');
     const savedMode = localStorage.getItem('enforcement_mode');
     const savedVerified = localStorage.getItem('last_verified_timestamp');
+    
+    // NEW: Load BYOK settings
+    const savedVault = localStorage.getItem('azure_keyvault_uri');
+    const savedKeyName = localStorage.getItem('azure_key_name');
 
     if (savedSub) setSubscriptionId(savedSub);
     if (savedTenant) setTenantId(savedTenant);
@@ -39,6 +47,9 @@ export default function SettingsPage() {
     if (savedSecret) setClientSecret(savedSecret);
     if (savedMode) setMode(savedMode as 'audit' | 'enforce');
     if (savedVerified) setLastVerified(savedVerified);
+    
+    if (savedVault) setKeyVaultUri(savedVault);
+    if (savedKeyName) setKeyName(savedKeyName);
   }, []);
 
   const handleFieldChange = (setter: Function, value: string) => {
@@ -92,6 +103,10 @@ export default function SettingsPage() {
     localStorage.setItem('azure_client_id', clientId);
     localStorage.setItem('azure_client_secret', clientSecret);
     localStorage.setItem('enforcement_mode', mode);
+    
+    // NEW: Save BYOK settings
+    localStorage.setItem('azure_keyvault_uri', keyVaultUri);
+    localStorage.setItem('azure_key_name', keyName);
     
     setIsSaving(false);
     setHasChanges(false);
@@ -201,6 +216,7 @@ export default function SettingsPage() {
                 Client Secret
               </label>
               
+              {/* RESTORED: WHERE DO I FIND THIS TOOLTIP */}
               <div className="group relative">
                 <div className="flex items-center gap-1 text-[9px] font-bold text-blue-500 cursor-help bg-blue-50 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
                   <LifeBuoy size={10} /> Where do I find this?
@@ -277,6 +293,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 🔑 UPDATED: ENCRYPTION (BYOK) WITH INPUT FIELDS */}
         <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white space-y-4 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
             <Key size={80} />
@@ -285,6 +302,24 @@ export default function SettingsPage() {
           <p className="text-xs text-slate-400 leading-relaxed font-medium">
             All audit evidence is encrypted with your Azure Key Vault. PHItag never sees your raw PHI data.
           </p>
+          
+          <div className="space-y-3 pt-2">
+            <input 
+              type="text" 
+              value={keyVaultUri}
+              onChange={(e) => handleFieldChange(setKeyVaultUri, e.target.value)}
+              placeholder="Key Vault URI (https://...)"
+              className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-mono text-blue-300 outline-none focus:border-blue-500/50" 
+            />
+            <input 
+              type="text" 
+              value={keyName}
+              onChange={(e) => handleFieldChange(setKeyName, e.target.value)}
+              placeholder="Key Name"
+              className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-mono text-blue-300 outline-none focus:border-blue-500/50" 
+            />
+          </div>
+
           <a 
             href={subscriptionId 
               ? `https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.KeyVault%2Fvaults/subscriptionId/${subscriptionId}?tenantId=${tenantId}` 
