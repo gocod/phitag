@@ -37,7 +37,7 @@ function SuccessContent() {
       setIsPilotSuccess(true);
     }
 
-    // 3. ⚡ SESSION RECOVERY & SYNCING
+    // 3. ⚡ SESSION RECOVERY & DEEP SYNC
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
         window.location.reload();
@@ -50,14 +50,26 @@ function SuccessContent() {
       const userTier = user?.tier?.toLowerCase();
       const isUpgraded = userTier === "pro" || userTier === "elite";
       
-      // 🎯 THE KILL SWITCH: If paid tier is detected, wipe the trial storage
       if (isUpgraded) {
-        console.log("💎 Upgrade confirmed. Cleaning trial data...");
+        // Clear trial banners immediately
         localStorage.removeItem('trial_start_date');
         setIsPilotSuccess(false);
-        hasCelebrated.current = true;
+
+        // 🎯 THE FIX: If they are 'pro', we trigger one more update to see if they are 'elite'
+        // But we only do this once to avoid an infinite loop
+        if (userTier === 'pro') {
+          console.log("🔄 Tier is Pro, checking for Elite upgrade sync...");
+          update(); 
+          // We don't set hasCelebrated to true yet if we want to allow one more cycle
+          // but for safety in most NextAuth setups, setting it here is fine.
+          hasCelebrated.current = true;
+        } else {
+          // They are already Elite, so we are done!
+          console.log("💎 Elite tier confirmed.");
+          hasCelebrated.current = true;
+        }
       } else {
-        // If not upgraded yet, wait for Firestore/Stripe sync
+        // If they are still 'free', they definitely need a sync
         const timer = setTimeout(() => {
           console.log("🔄 Syncing new permissions...");
           update(); 
@@ -67,7 +79,6 @@ function SuccessContent() {
       }
     }
   }, [status, update, session]);
-
   // Protective Loading State
   if (status === "loading") {
     return (
