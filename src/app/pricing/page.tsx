@@ -18,8 +18,6 @@ export default function PricingPage() {
 
   // 🕒 COUNTDOWN LOGIC
   useEffect(() => {
-    // In a real app, 'trial_start' would come from your DB via the session
-    // For this demo, we'll check localStorage or default to "today"
     const trialStartStr = localStorage.getItem('trial_start_date') || new Date().toISOString();
     const startDate = new Date(trialStartStr);
     const endDate = new Date(startDate);
@@ -29,9 +27,11 @@ export default function PricingPage() {
     const diffTime = endDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Only show if the user is on a pilot plan (mocked check)
     setDaysRemaining(diffDays > 0 ? diffDays : 0);
   }, []);
+
+  const userTier = (session?.user as any)?.tier?.toLowerCase();
+  const isPaidUser = userTier === 'pro' || userTier === 'elite';
 
   const tiers = [
     {
@@ -47,9 +47,10 @@ export default function PricingPage() {
         "Standard BAA Included",
         "Infrastructure Traceback Map"
       ],
-      button: "Start 90-Day Pilot",
+      button: isPaidUser ? "Already Subscribed" : "Start 90-Day Pilot",
       highlight: false,
-      footerNote: "Credit card required. Auto-renews to Pro after 90 days."
+      footerNote: isPaidUser ? "Switching tiers? Contact support." : "Credit card required. Auto-renews to Pro after 90 days.",
+      isDisabled: isPaidUser
     },
     {
       name: "Governance Pro",
@@ -63,8 +64,9 @@ export default function PricingPage() {
         "Onboarding Workshop",
         "Standard BAA Included"
       ],
-      button: "Start Subscription",
-      highlight: false
+      button: userTier === 'pro' ? "Current Plan" : "Start Subscription",
+      highlight: false,
+      isDisabled: userTier === 'pro'
     },
     {
       name: "Compliance Elite",
@@ -79,8 +81,9 @@ export default function PricingPage() {
         "Monthly Compliance Review",
         "Priority Support (2h Response)"
       ],
-      button: "Upgrade to Elite",
-      highlight: true
+      button: userTier === 'elite' ? "Current Plan" : "Upgrade to Elite",
+      highlight: true,
+      isDisabled: userTier === 'elite'
     }
   ];
 
@@ -110,7 +113,6 @@ export default function PricingPage() {
 
       const data = await response.json();
       if (data.url) {
-        // If they just started a pilot, save the date for the timer
         if (priceId === STRIPE_IDS.PILOT) {
           localStorage.setItem('trial_start_date', new Date().toISOString());
         }
@@ -130,7 +132,7 @@ export default function PricingPage() {
       
       {/* 🏁 HEADER WITH TRIAL COUNTDOWN */}
       <section className="text-center space-y-4 relative">
-        {daysRemaining !== null && (
+        {daysRemaining !== null && !isPaidUser && (
           <div className="absolute top-0 right-0 md:right-10 animate-bounce">
             <div className="bg-amber-100 border border-amber-200 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
               <Clock size={14} className="text-amber-600" />
@@ -190,13 +192,15 @@ export default function PricingPage() {
             <div className="mt-auto space-y-4">
               <button 
                 onClick={() => handleCheckout(tier.priceId!)}
-                disabled={loadingPriceId === tier.priceId}
+                disabled={loadingPriceId === tier.priceId || tier.isDisabled}
                 className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  tier.highlight 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
-                    : tier.price === "$0" 
-                      ? 'bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50'
-                      : 'bg-slate-900 text-white hover:bg-black'
+                  tier.isDisabled 
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : tier.highlight 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-100' 
+                      : tier.price === "$0" 
+                        ? 'bg-white border-2 border-slate-200 text-slate-900 hover:bg-slate-50'
+                        : 'bg-slate-900 text-white hover:bg-black'
                 }`}
               >
                 {loadingPriceId === tier.priceId ? (
