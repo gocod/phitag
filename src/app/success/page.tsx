@@ -18,12 +18,22 @@ function SuccessContent() {
   const { data: session, status, update } = useSession(); 
   
   const [isPilotSuccess, setIsPilotSuccess] = useState(false);
+  const [isEliteUpgrade, setIsEliteUpgrade] = useState(false); // 🎯 Fast-Track State
   const hasCelebrated = useRef(false);
 
   useEffect(() => {
+    // 🔍 1. PRE-SYNC DETECTION
+    const user = session?.user as any;
+    const userTier = user?.tier?.toLowerCase();
+
+    // If a Pro user has a session ID, they are upgrading to Elite right now
+    if (userTier === 'pro' && sessionId) {
+      setIsEliteUpgrade(true);
+    }
+
     if (hasCelebrated.current) return;
 
-    // 1. 🎉 CELEBRATION (Trigger immediately)
+    // 🎉 2. CELEBRATION
     confetti({
       particleCount: 150,
       spread: 70,
@@ -31,13 +41,13 @@ function SuccessContent() {
       colors: ['#2563eb', '#10b981', '#f59e0b']
     });
 
-    // 2. 🛡️ PILOT DETECTION
+    // 🛡️ 3. PILOT DETECTION
     const trialStarted = localStorage.getItem('trial_start_date');
     if (trialStarted) {
       setIsPilotSuccess(true);
     }
 
-    // 3. ⚡ SESSION RECOVERY & DEEP SYNC
+    // ⚡ 4. SESSION RECOVERY & SYNCING
     if (status === "unauthenticated") {
       const timer = setTimeout(() => {
         window.location.reload();
@@ -46,30 +56,24 @@ function SuccessContent() {
     }
 
     if (status === "authenticated") {
-      const user = session?.user as any;
-      const userTier = user?.tier?.toLowerCase();
       const isUpgraded = userTier === "pro" || userTier === "elite";
       
       if (isUpgraded) {
-        // Clear trial banners immediately
         localStorage.removeItem('trial_start_date');
         setIsPilotSuccess(false);
 
-        // 🎯 THE FIX: If they are 'pro', we trigger one more update to see if they are 'elite'
-        // But we only do this once to avoid an infinite loop
+        // If currently Pro, force an update to fetch the Elite status
         if (userTier === 'pro') {
-          console.log("🔄 Tier is Pro, checking for Elite upgrade sync...");
-          update(); 
-          // We don't set hasCelebrated to true yet if we want to allow one more cycle
-          // but for safety in most NextAuth setups, setting it here is fine.
-          hasCelebrated.current = true;
+          console.log("🔄 Upgrading Pro -> Elite: Syncing session...");
+          update().then(() => {
+            setIsEliteUpgrade(false); // Stop forcing Elite display once session catches up
+            hasCelebrated.current = true;
+          });
         } else {
-          // They are already Elite, so we are done!
-          console.log("💎 Elite tier confirmed.");
           hasCelebrated.current = true;
         }
       } else {
-        // If they are still 'free', they definitely need a sync
+        // Initial upgrade from Free
         const timer = setTimeout(() => {
           console.log("🔄 Syncing new permissions...");
           update(); 
@@ -78,8 +82,9 @@ function SuccessContent() {
         return () => clearTimeout(timer);
       }
     }
-  }, [status, update, session]);
-  // Protective Loading State
+  }, [status, update, session, sessionId]);
+
+  // 🛡️ Protective Loading State
   if (status === "loading") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -91,8 +96,10 @@ function SuccessContent() {
     );
   }
 
+  // 🎯 UI LOGIC: Use the Fast-Track override or the confirmed session tier
   const user = session?.user as any;
-  const currentTier = user?.tier?.toUpperCase() || "PRO";
+  const sessionTier = user?.tier?.toUpperCase() || "PRO";
+  const displayTier = (isEliteUpgrade || sessionTier === 'ELITE') ? 'ELITE' : 'PRO';
 
   return (
     <div className="max-w-3xl mx-auto py-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -105,14 +112,14 @@ function SuccessContent() {
           {isPilotSuccess ? (
             <>Pilot Program <span className="text-blue-600">Active.</span></>
           ) : (
-            <>{currentTier === 'ELITE' ? 'Compliance Elite' : 'Governance Pro'} <span className="text-blue-600">Activated.</span></>
+            <>{displayTier === 'ELITE' ? 'Compliance Elite' : 'Governance Pro'} <span className="text-blue-600">Activated.</span></>
           )}
         </h1>
 
         <p className="text-slate-500 text-lg max-w-md mx-auto font-medium leading-relaxed">
           {isPilotSuccess 
             ? "Welcome to your 90-day clinical pilot. You have full access to Pro features to secure your Azure environment."
-            : `Your ${currentTier} compliance engine is now online. Your session is currently syncing with your new permissions.`
+            : `Your ${displayTier === 'ELITE' ? 'ELITE' : 'PRO'} compliance engine is now online. Your session is currently syncing with your new permissions.`
           }
         </p>
 
@@ -123,7 +130,7 @@ function SuccessContent() {
           </div>
         )}
 
-        {currentTier === 'ELITE' && !isPilotSuccess && (
+        {displayTier === 'ELITE' && !isPilotSuccess && (
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100 shadow-sm">
             <Star size={14} className="fill-amber-500" />
             <span className="text-xs font-black uppercase tracking-widest">Elite Tier Status Confirmed</span>
@@ -173,7 +180,7 @@ function SuccessContent() {
             <div className="flex-shrink-0 w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center font-bold">3</div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900">Initialize Audit Vault</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">Access your secure logging environment to view the first set of drift reports.</p>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Access your secure logging environment to view drift reports.</p>
               <Link href="/audit" className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 mt-2 hover:underline">
                 Go to Audit Vault <ShieldCheck size={14} />
               </Link>
@@ -184,7 +191,7 @@ function SuccessContent() {
 
       <div className="mt-12 text-center">
         <p className="text-xs text-slate-400 font-medium">
-          Need help with your {currentTier} setup? <Link href="/support" className="text-blue-600 font-bold hover:underline">Contact Governance Support</Link>
+          Need help with your {displayTier} setup? <Link href="/support" className="text-blue-600 font-bold hover:underline">Contact Governance Support</Link>
         </p>
       </div>
     </div>

@@ -56,18 +56,28 @@ export async function POST(req: Request) {
     let emailSubject = 'Welcome to PHItag! 🛡️';
     let emailBody = '';
 
-    if (isSale) {
-      // 🏆 RESTORED: UPGRADE CONFIRMATION
+   if (isSale) {
+      // 🏆 DYNAMIC UPGRADE CONFIRMATION
       emailSubject = `Your ${livePlan} Access is Now Active! 🛡️`;
+      
+      // Determine if this is an Elite plan to show higher-tier benefits
+      const isElite = livePlan.toLowerCase().includes('elite');
+
+      const featureList = isElite 
+        ? `<li><strong>Auto-Remediation:</strong> Fixing compliance gaps in real-time.</li>
+           <li><strong>Audit Vault:</strong> Full historical logs for HIPAA/SOC2 audits.</li>
+           <li><strong>Priority Support:</strong> Direct access to the PHItag compliance desk.</li>`
+        : `<li><strong>Real-time Scanning:</strong> Detecting infrastructure drift as it happens.</li>
+           <li><strong>Audit Vault:</strong> Standard logging for clinical reviews.</li>
+           <li><strong>Standard Support:</strong> 24-hour response time for governance queries.</li>`;
+
       emailBody = `
         <h2 style="text-align: center; color: #003366; margin-bottom: 20px;">Upgrade Successful!</h2>
         <p>Your environment is now secured with <strong>${livePlan}</strong> features. Your automated governance is now fully active.</p>
         <div style="background-color: #f0f7ff; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #003366;">
           <h4 style="margin: 0 0 10px 0; color: #003366;">Enterprise Capabilities Unlocked:</h4>
           <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
-            <li><strong>Auto-Remediation:</strong> Fixing compliance gaps in real-time.</li>
-            <li><strong>Audit Vault:</strong> Full historical logs for HIPAA/SOC2 audits.</li>
-            <li><strong>Priority Support:</strong> Direct access to the PHItag compliance desk.</li>
+            ${featureList}
           </ul>
         </div>`;
     } else {
