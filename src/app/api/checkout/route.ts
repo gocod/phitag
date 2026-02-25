@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       customer_email: userEmail,
       client_reference_id: userEmail, 
 
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}&plan=${isElite ? 'elite' : 'pro'}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       
       subscription_data: {

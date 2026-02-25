@@ -15,10 +15,13 @@ import confetti from 'canvas-confetti';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  // 🎯 Detect the plan from the URL to prevent "Elite" text showing for "Pro" users
+  const planInUrl = searchParams.get('plan')?.toLowerCase(); 
+  
   const { data: session, status, update } = useSession(); 
   
   const [isPilotSuccess, setIsPilotSuccess] = useState(false);
-  const [isEliteUpgrade, setIsEliteUpgrade] = useState(false); // 🎯 Fast-Track State
+  const [isEliteUpgrade, setIsEliteUpgrade] = useState(false); 
   const hasCelebrated = useRef(false);
 
   useEffect(() => {
@@ -26,8 +29,8 @@ function SuccessContent() {
     const user = session?.user as any;
     const userTier = user?.tier?.toLowerCase();
 
-    // If a Pro user has a session ID, they are upgrading to Elite right now
-    if (userTier === 'pro' && sessionId) {
+    // Only "Fast-Track" to Elite if the URL actually says elite
+    if (sessionId && planInUrl === 'elite') {
       setIsEliteUpgrade(true);
     }
 
@@ -62,27 +65,21 @@ function SuccessContent() {
         localStorage.removeItem('trial_start_date');
         setIsPilotSuccess(false);
 
-        // If currently Pro, force an update to fetch the Elite status
-        if (userTier === 'pro') {
-          console.log("🔄 Upgrading Pro -> Elite: Syncing session...");
-          update().then(() => {
-            setIsEliteUpgrade(false); // Stop forcing Elite display once session catches up
-            hasCelebrated.current = true;
-          });
-        } else {
+        // Background sync to finalize the session data
+        update().then(() => {
+          setIsEliteUpgrade(false); 
           hasCelebrated.current = true;
-        }
+        });
       } else {
         // Initial upgrade from Free
         const timer = setTimeout(() => {
-          console.log("🔄 Syncing new permissions...");
           update(); 
           hasCelebrated.current = true; 
         }, 1500);
         return () => clearTimeout(timer);
       }
     }
-  }, [status, update, session, sessionId]);
+  }, [status, update, session, sessionId, planInUrl]);
 
   // 🛡️ Protective Loading State
   if (status === "loading") {
@@ -96,7 +93,9 @@ function SuccessContent() {
     );
   }
 
-  // 🎯 UI LOGIC: Use the Fast-Track override or the confirmed session tier
+  // 🎯 UI LOGIC: 
+  // If the session says Elite OR our "Fast-track" is on, show ELITE. 
+  // Otherwise, default to PRO.
   const user = session?.user as any;
   const sessionTier = user?.tier?.toUpperCase() || "PRO";
   const displayTier = (isEliteUpgrade || sessionTier === 'ELITE') ? 'ELITE' : 'PRO';
@@ -119,7 +118,7 @@ function SuccessContent() {
         <p className="text-slate-500 text-lg max-w-md mx-auto font-medium leading-relaxed">
           {isPilotSuccess 
             ? "Welcome to your 90-day clinical pilot. You have full access to Pro features to secure your Azure environment."
-            : `Your ${displayTier === 'ELITE' ? 'ELITE' : 'PRO'} compliance engine is now online. Your session is currently syncing with your new permissions.`
+            : `Your ${displayTier} compliance engine is now online. Your session is currently syncing with your new permissions.`
           }
         </p>
 
@@ -130,6 +129,7 @@ function SuccessContent() {
           </div>
         )}
 
+        {/* This badge only shows if the system confirms Elite status */}
         {displayTier === 'ELITE' && !isPilotSuccess && (
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100 shadow-sm">
             <Star size={14} className="fill-amber-500" />
