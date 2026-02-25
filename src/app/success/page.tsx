@@ -54,8 +54,34 @@ function SuccessContent() {
 
     if (status === "authenticated") {
       const user = session?.user as any;
+      // Use the standardized lowercase tier we set up in NextAuth
       const userTier = user?.tier?.toLowerCase();
       const isUpgraded = userTier === "pro" || userTier === "elite";
+      
+      // 🎯 THE FIX: If the user is upgraded, kill the trial data in the browser.
+      // This ensures the "90 Days Left" banner is deleted immediately upon purchase.
+      if (isUpgraded) {
+        console.log("💎 Upgrade confirmed in session. Clearing trial banners...");
+        localStorage.removeItem('trial_start_date');
+        
+        // If they just bought Elite/Pro, they aren't a "Pilot Success" (trial) anymore
+        if (!trialStarted) {
+          setIsPilotSuccess(false);
+        }
+      }
+
+      // If the session hasn't picked up the new tier yet, trigger the refresh
+      if (!isUpgraded) {
+        const timer = setTimeout(() => {
+          console.log("🔄 Syncing new permissions...");
+          update(); 
+          hasCelebrated.current = true; 
+        }, 1500);
+        return () => clearTimeout(timer);
+      } else {
+        hasCelebrated.current = true; 
+      }
+    }
       
       // 🎯 CLEANUP: If the user just paid for Pro/Elite, kill the Pilot Banner
       // This ensures the "90 Days Left" UI doesn't persist for paying users.

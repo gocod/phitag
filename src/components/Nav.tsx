@@ -24,6 +24,7 @@ export default function Nav() {
   const lastPathRef = useRef(pathname);
 
   useEffect(() => {
+    // --- START ORIGINAL LOGIC ---
     if (status === "authenticated" && lastPathRef.current !== pathname) {
       update();
       lastPathRef.current = pathname;
@@ -47,9 +48,24 @@ export default function Nav() {
     updateClock();
     window.addEventListener('keydown', handleKeyDown);
     setIsSuiteOpen(false); 
+    // --- END ORIGINAL LOGIC ---
+
+    // 🚀 NEW: BANNER KILL SWITCH
+    // If the session confirms a paid tier, we forcefully wipe the trial data.
+    if (status === "authenticated") {
+      const user = session?.user as any;
+      const userTier = user?.tier?.toLowerCase();
+      
+      if (userTier === 'pro' || userTier === 'elite') {
+        if (localStorage.getItem('trial_start_date')) {
+          console.log("🧹 Paid Tier detected. Wiping trial banner data...");
+          localStorage.removeItem('trial_start_date');
+        }
+      }
+    }
     
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pathname, status, update]);
+  }, [pathname, status, update, session]); // session added to dependencies
 
   // Defined modules with their required tiers
   const suiteModules = {
@@ -175,9 +191,18 @@ export default function Nav() {
                     Sign In
                   </button>
                 ) : (
-                  <button onClick={() => signOut({ callbackUrl: '/' })} className="cursor-pointer text-[11px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors py-2">
-                    Sign Out
-                  </button>
+                  <button 
+  onClick={async () => {
+    // 🧹 Clean up the trial banner data from the browser's memory
+    localStorage.removeItem('trial_start_date');
+    
+    // 🚪 Standard NextAuth sign out
+    await signOut({ callbackUrl: '/' });
+  }} 
+  className="cursor-pointer text-[11px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors py-2"
+>
+  Sign Out
+</button>
                 )}
               </div>
 
