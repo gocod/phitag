@@ -17,7 +17,7 @@ export default function PricingPage() {
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
 
   // 🕒 COUNTDOWN LOGIC
-  useEffect(() => {
+  /* useEffect(() => {
     const trialStartStr = localStorage.getItem('trial_start_date') || new Date().toISOString();
     const startDate = new Date(trialStartStr);
     const endDate = new Date(startDate);
@@ -29,6 +29,7 @@ export default function PricingPage() {
     
     setDaysRemaining(diffDays > 0 ? diffDays : 0);
   }, []);
+*/
 
   const userTier = (session?.user as any)?.tier?.toLowerCase();
   const isPaidUser = userTier === 'pro' || userTier === 'elite';
@@ -132,16 +133,17 @@ export default function PricingPage() {
       
       {/* 🏁 HEADER WITH TRIAL COUNTDOWN */}
       <section className="text-center space-y-4 relative">
-        {daysRemaining !== null && !isPaidUser && (
-          <div className="absolute top-0 right-0 md:right-10 animate-bounce">
-            <div className="bg-amber-100 border border-amber-200 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
-              <Clock size={14} className="text-amber-600" />
-              <span className="text-[10px] font-black uppercase text-amber-700 tracking-tighter">
-                Trial: {daysRemaining} Days Left
-              </span>
-            </div>
-          </div>
-        )}
+        {/* {daysRemaining !== null && !isPaidUser && (
+    <div className="absolute top-0 right-0 md:right-10 animate-bounce">
+      <div className="bg-amber-100 border border-amber-200 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
+        <Clock size={14} className="text-amber-600" />
+        <span className="text-[10px] font-black uppercase text-amber-700 tracking-tighter">
+          Trial: {daysRemaining} Days Left
+        </span>
+      </div>
+    </div>
+  )}
+*/}
 
         <h2 className="text-blue-600 font-black uppercase tracking-[0.3em] text-[10px] italic">Cloud Safeguards</h2>
         <h1 className="text-5xl font-black text-slate-900 tracking-tighter leading-tight">
